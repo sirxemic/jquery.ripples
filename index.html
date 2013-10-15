@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>jQuery WebGL Ripples</title>
+<style>
+body { margin: 0; }
+div {
+	position: fixed;
+}
+
+.a {
+	left: 0;
+	top: 0;
+	right: 51%;
+	bottom: 51%;
+	background-size: cover;
+}
+
+.b {
+	left: 51%;
+	top: 25.5%;
+	right: 0;
+	bottom: 25.5%;
+	background-attachment: fixed;
+}
+
+.c {
+	left: 0;
+	top: 51%;
+	right: 51%;
+	bottom: 0;
+	background-size: cover;
+}
+</style>
+</head>
+<body>
+
+<div class="a" style="background-image:url(http://placekitten.com/800/500)">
+</div>
+
+<div class="b" style="background-image:url(http://placekitten.com/128/128)">
+</div>
+
+<div class="c" style="background-image:url(http://placekitten.com/600/700)">
+</div>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+<script src="jquery.ripples.js"></script>
+<script>
+$(document).ready(function() {
+	$('div').ripples({
+		resolution: 256,
+		perturbance: 0.04
+	});
+});
+</script>
+</body>
+</html>
