@@ -64,13 +64,18 @@
 	var Ripples = function (el, options) {
 		var that = this;
 		
+		this.$el = $(el);
+		this.$el.addClass('ripples');
+		
+		// If this element doesn't have a background image, don't apply this effect to it
+		var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
+		if (backgroundUrl == null) return;
+		backgroundUrl = backgroundUrl[1];
+		
 		this.resolution = options.resolution || 256;
 		this.textureDelta = new Float32Array([1 / this.resolution, 1 / this.resolution]);
 		
 		this.perturbance = options.perturbance;
-		
-		this.$el = $(el);
-		this.$el.addClass('ripples');
 		
 		var canvas = document.createElement('canvas');
 		canvas.width = this.$el.outerWidth();
@@ -96,8 +101,7 @@
 		this.$el.on('mousedown', $.proxy(this.mousedown, this));
 		
 		// Init textures
-		var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')))[1];
-		
+
 		var image = new Image;
 		image.crossOrigin = '';
 		image.onload = function() {
@@ -492,7 +496,7 @@
 
 	$.fn.ripples = function(option) {
 		return this.each(function() {
-			if (!supportsWebGL) return;
+			if (!supportsWebGL) throw new Error('Your browser does not support at least one of the following: WebGL, OES_texture_float extension, OES_texture_float_linear extension.');
 			
 			var $this   = $(this);
 			var data    = $this.data('ripples');

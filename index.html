@@ -6,6 +6,7 @@
 body { margin: 0; }
 div {
 	position: fixed;
+	font-family: "Helvetica Neue","Helvetica","Arial",sans-serif;
 }
 
 .a {
@@ -31,6 +32,17 @@ div {
 	bottom: 0;
 	background-size: cover;
 }
+
+.error {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background: rgba(0,0,0,0.8);
+	color: #eee;
+	padding: 20px;
+	display: none;
+}
 </style>
 </head>
 <body>
@@ -44,14 +56,21 @@ div {
 <div class="c" style="background-image:url(http://placekitten.com/600/700)">
 </div>
 
+<div class="error"></div>
+
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
 <script src="js/jquery.ripples.js"></script>
 <script>
 $(document).ready(function() {
-	$('div').ripples({
-		resolution: 256,
-		perturbance: 0.04
-	});
+	try {
+		$('.a,.b,.c').ripples({
+			resolution: 256,
+			perturbance: 0.04
+		});
+	}
+	catch (e) {
+		$('.error').show().text(e);
+	}
 });
 </script>
 </body>
