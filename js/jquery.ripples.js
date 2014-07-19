@@ -57,6 +57,9 @@
 		gl.activeTexture(gl.TEXTURE0 + (unit || 0));
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 	}
+	
+	// Extend the css
+	$('head').prepend('<style>.jquery-ripples { position: relative; z-index: 0; }</style>');
 
 	// RIPPLES CLASS DEFINITION
 	// =========================
@@ -65,7 +68,7 @@
 		var that = this;
 		
 		this.$el = $(el);
-		this.$el.addClass('ripples');
+		this.$el.addClass('jquery-ripples');
 		
 		// If this element doesn't have a background image, don't apply this effect to it
 		var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
@@ -76,11 +79,21 @@
 		this.textureDelta = new Float32Array([1 / this.resolution, 1 / this.resolution]);
 		
 		this.perturbance = options.perturbance;
+		this.dropRadius = options.dropRadius;
 		
 		var canvas = document.createElement('canvas');
-		canvas.width = this.$el.outerWidth();
-		canvas.height = this.$el.outerHeight();
+		canvas.width = this.$el.innerWidth();
+		canvas.height = this.$el.innerHeight();
 		this.canvas = canvas;
+		this.$canvas = $(canvas);
+		this.$canvas.css({
+			position: 'absolute',
+			left: 0,
+			top: 0,
+			right: 0,
+			bottom: 0,
+			zIndex: -1
+		});
 		
 		this.$el.append(canvas);
 		this.context = gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -91,45 +104,18 @@
 		
 		// Init events
 		$(window).on('resize', function() {
-			if (that.$el.outerWidth() != that.canvas.width || that.$el.outerHeight() != that.canvas.height) {
-				canvas.width = that.$el.outerWidth();
-				canvas.height = that.$el.outerHeight();
+			if (that.$el.innerWidth() != that.canvas.width || that.$el.innerHeight() != that.canvas.height) {
+				canvas.width = that.$el.innerWidth();
+				canvas.height = that.$el.innerHeight();
 			}
 		});
-		this.$el.on('mousemove', $.proxy(this.mousemove, this));
-		this.$el.on('mousemoverel', $.proxy(this.mousemove, this));
-		this.$el.on('mousedown', $.proxy(this.mousedown, this));
+
+		this.$el.on('mousemove.ripples', function(e) {
+			if (that.visible) that.dropAtMouse(e, that.dropRadius, 0.01);
+		}).on('mousedown.ripples', function(e) {
+			if (that.visible) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+		});
 		
-		// Init textures
-
-		var image = new Image;
-		image.crossOrigin = '';
-		image.onload = function() {
-			gl = that.context;
-			
-			function isPowerOfTwo(x) {
-				return (x & (x - 1)) == 0;
-			}
-			
-			var wrapping = (isPowerOfTwo(image.width) && isPowerOfTwo(image.height)) ? gl.REPEAT : gl.CLAMP_TO_EDGE;
-			
-			that.backgroundWidth = image.width;
-			that.backgroundHeight = image.height;
-			
-			var texture = gl.createTexture();
-			
-			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapping);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapping);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-			
-			that.backgroundTexture = texture;
-		};
-		image.src = backgroundUrl;
-
 		this.textures = [];
 		this.framebuffers = [];
 
@@ -172,6 +158,40 @@
 		
 		this.initShaders();
 		
+		// Init textures
+		var image = new Image;
+		image.crossOrigin = '';
+		image.onload = function() {
+			gl = that.context;
+			
+			function isPowerOfTwo(x) {
+				return (x & (x - 1)) == 0;
+			}
+			
+			var wrapping = (isPowerOfTwo(image.width) && isPowerOfTwo(image.height)) ? gl.REPEAT : gl.CLAMP_TO_EDGE;
+			
+			that.backgroundWidth = image.width;
+			that.backgroundHeight = image.height;
+			
+			var texture = gl.createTexture();
+			
+			gl.bindTexture(gl.TEXTURE_2D, texture);
+			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapping);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapping);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+			
+			that.backgroundTexture = texture;
+			
+			// Everything loaded successfully - hide the CSS background image
+			that.$el.css('backgroundImage', 'none');
+		};
+		image.src = backgroundUrl;
+		
+		this.visible = true;
+		
 		// Init animation
 		function step() {
 			that.update();
@@ -183,14 +203,16 @@
 
 	Ripples.DEFAULTS = {
 		resolution: 256,
+		dropRadius: 20,
 		perturbance: 0.03
 	};
 	
 	Ripples.prototype = {
+
 		update: function() {
 			gl = this.context;
 			
-			if (!this.backgroundTexture) return;
+			if (!this.visible || !this.backgroundTexture) return;
 			
 			this.updateTextures();
 			this.render();
@@ -245,8 +267,8 @@
 			// (either the chrome window or some element, depending on attachment)
 			var parElement = backgroundAttachment == 'fixed' ? $window : this.$el;
 			var winOffset = parElement.offset() || {left: pageXOffset, top: pageYOffset};
-			var winWidth = parElement.outerWidth();
-			var winHeight = parElement.outerHeight();
+			var winWidth = parElement.innerWidth();
+			var winHeight = parElement.innerHeight();
 
 			// TODO: background-clip
 			if (backgroundSize == 'cover') {
@@ -267,12 +289,19 @@
 				var backgroundHeight = backgroundSize[1] || backgroundSize[0];
 				
 				if (backgroundWidth.endsWith('%')) backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
-				else if (backgroundWidth == 'auto') backgroundWidth = this.backgroundWidth;
-				else backgroundWidth = parseFloat(backgroundWidth);
+				else if (backgroundWidth != 'auto') backgroundWidth = parseFloat(backgroundWidth);
 				
 				if (backgroundHeight.endsWith('%')) backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
-				else if (backgroundHeight == 'auto') backgroundHeight = this.backgroundHeight;
-				else backgroundHeight = parseFloat(backgroundHeight);
+				else if (backgroundHeight != 'auto') backgroundHeight = parseFloat(backgroundHeight);
+				
+				if (backgroundWidth == 'auto' && backgroundHeight == 'auto') {
+					backgroundWidth = this.backgroundWidth;
+					backgroundHeight = this.backgroundHeight;
+				}
+				else {
+					if (backgroundWidth == 'auto') backgroundWidth = this.backgroundWidth * (backgroundHeight / this.backgroundHeight);
+					if (backgroundHeight == 'auto') backgroundHeight = this.backgroundHeight * (backgroundWidth / this.backgroundWidth);
+				}
 			}
 			
 			// Compute backgroundX and backgroundY in page coordinates
@@ -306,8 +335,8 @@
 				(elementOffset.top - backgroundY) / backgroundHeight
 			]);
 			this.renderProgram.uniforms.bottomRight = new Float32Array([
-				this.renderProgram.uniforms.topLeft[0] + this.$el.outerWidth() / backgroundWidth,
-				this.renderProgram.uniforms.topLeft[1] + this.$el.outerHeight() / backgroundHeight
+				this.renderProgram.uniforms.topLeft[0] + this.$el.innerWidth() / backgroundWidth,
+				this.renderProgram.uniforms.topLeft[1] + this.$el.innerHeight() / backgroundHeight
 			]);
 			
 			var maxSide = Math.max(this.canvas.width, this.canvas.height);
@@ -437,7 +466,7 @@
 		
 		dropAtMouse: function(e, radius, strength) {
 			var that = this;
-			
+
 			gl = this.context;
 			
 			e.offsetX = e.offsetX || (e.pageX - this.$el.offset().left);
@@ -446,6 +475,8 @@
 			var elWidth = this.$el.outerWidth();
 			var elHeight = this.$el.outerHeight();
 			var longestSide = Math.max(elWidth, elHeight);
+			
+			radius = radius / longestSide;
 			
 			var dropPosition = new Float32Array([
 				(2 * e.offsetX - elWidth) / longestSide, 
@@ -474,13 +505,25 @@
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		},
 		
-		mousemove: function(e) {
-			this.dropAtMouse(e, 0.03, 0.01);
+		// Actions
+		destroy: function() {
+			this.canvas.remove();
+			this.$el.off('.ripples');
+			this.$el.css('backgroundImage', '');
+			this.$el.removeClass('jquery-ripples').data('ripples', undefined);
 		},
 		
-		mousedown: function(e) {
-			this.dropAtMouse(e, 0.09, 0.14);
+		show: function() {
+			this.$canvas.show();
+			this.$el.css('backgroundImage', 'none');
+			this.visible = true;
 		},
+		
+		hide: function() {
+			this.$canvas.hide();
+			this.$el.css('backgroundImage', '');
+			this.visible = false;
+		}
 	};
 
 	// RIPPLES PLUGIN DEFINITION
@@ -489,15 +532,16 @@
 	var old = $.fn.ripples;
 
 	$.fn.ripples = function(option) {
+		if (!supportsWebGL) throw new Error('Your browser does not support at least one of the following: WebGL, OES_texture_float extension, OES_texture_float_linear extension.');
+
 		return this.each(function() {
-			if (!supportsWebGL) throw new Error('Your browser does not support at least one of the following: WebGL, OES_texture_float extension, OES_texture_float_linear extension.');
-			
 			var $this   = $(this);
 			var data    = $this.data('ripples');
 			var options = $.extend({}, Ripples.DEFAULTS, $this.data(), typeof option == 'object' && option);
-
-			if (!data) 
-				$this.data('ripples', new Ripples(this, options));
+			
+			if (!data && typeof option == 'string' && option == 'destroy') return;
+			if (!data) $this.data('ripples', (data = new Ripples(this, options)));
+			else if (typeof option == 'string') data[option]();
 		});
 	}
 
