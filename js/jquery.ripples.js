@@ -1,3 +1,9 @@
+/**
+ * jQuery Ripples plugin v0.1.0 / http://github.com/sirxemic/jquery.ripples
+ * MIT License
+ * @author sirxemic / http://sirxemic.com/
+ */
+
 +function ($) {
 
 	var gl;
