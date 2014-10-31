@@ -17,7 +17,6 @@
 		var canvas = document.createElement('canvas');
 		var context = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 		var result = context && context.getExtension('OES_texture_float') && context.getExtension('OES_texture_float_linear');
-		canvas.remove();
 		return result;
 	}
 	
