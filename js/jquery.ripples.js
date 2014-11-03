@@ -470,12 +470,18 @@
 		},
 		
 		dropAtMouse: function(e, radius, strength) {
+			this.drop(
+				e.offsetX || (e.pageX - this.$el.offset().left),
+				e.offsetY || (e.pageY - this.$el.offset().top),
+				radius, 
+				strength
+			);
+		},
+		
+		drop: function(x, y, radius, strength) {
 			var that = this;
 
 			gl = this.context;
-			
-			e.offsetX = e.offsetX || (e.pageX - this.$el.offset().left);
-			e.offsetY = e.offsetY || (e.pageY - this.$el.offset().top);
 
 			var elWidth = this.$el.outerWidth();
 			var elHeight = this.$el.outerHeight();
@@ -484,8 +490,8 @@
 			radius = radius / longestSide;
 			
 			var dropPosition = new Float32Array([
-				(2 * e.offsetX - elWidth) / longestSide, 
-				(elHeight - 2 * e.offsetY) / longestSide
+				(2 * x - elWidth) / longestSide, 
+				(elHeight - 2 * y) / longestSide
 			]);
 
 			gl.viewport(0, 0, this.resolution, this.resolution);
@@ -539,6 +545,8 @@
 	$.fn.ripples = function(option) {
 		if (!supportsWebGL) throw new Error('Your browser does not support at least one of the following: WebGL, OES_texture_float extension, OES_texture_float_linear extension.');
 
+		var args = (arguments.length > 1) ? Array.prototype.slice.call(arguments, 1) : undefined;
+
 		return this.each(function() {
 			var $this   = $(this);
 			var data    = $this.data('ripples');
@@ -546,7 +554,7 @@
 			
 			if (!data && typeof option == 'string' && option == 'destroy') return;
 			if (!data) $this.data('ripples', (data = new Ripples(this, options)));
-			else if (typeof option == 'string') data[option]();
+			else if (typeof option == 'string') Ripples.prototype[option].apply(data, args);
 		});
 	}
 
