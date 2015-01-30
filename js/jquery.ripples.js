@@ -116,9 +116,9 @@
 		});
 
 		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible) that.dropAtMouse(e, that.dropRadius, 0.01);
+			if (that.visible && that.running) that.dropAtMouse(e, that.dropRadius, 0.01);
 		}).on('mousedown.ripples', function(e) {
-			if (that.visible) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			if (that.visible && that.running) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
 		});
 		
 		this.textures = [];
@@ -150,6 +150,8 @@
 			this.textures.push(texture);
 			this.framebuffers.push(framebuffer);
 		}
+
+		this.running = true;
 
 		// Init GL stuff
 		this.quad = gl.createBuffer();
@@ -219,7 +221,12 @@
 			
 			if (!this.visible || !this.backgroundTexture) return;
 			
-			this.updateTextures();
+			this.computeTextureBoundaries();
+
+			if (this.running) {
+				this.update();
+			}
+
 			this.render();
 		},
 		
@@ -247,9 +254,7 @@
 			this.drawQuad();
 		},
 
-		updateTextures: function() {
-			this.computeTextureBoundaries();
-			
+		update: function() {
 			gl.viewport(0, 0, this.resolution, this.resolution);
 			
 			for (var i = 0; i < 2; i++) {
@@ -521,7 +526,7 @@
 			this.canvas.remove();
 			this.$el.off('.ripples');
 			this.$el.css('backgroundImage', '');
-			this.$el.removeClass('jquery-ripples').data('ripples', undefined);
+			this.$el.removeClass('jquery-ripples').removeData('ripples');
 		},
 		
 		show: function() {
@@ -534,7 +539,15 @@
 			this.$canvas.hide();
 			this.$el.css('backgroundImage', '');
 			this.visible = false;
-		}
+		},
+
+		pause: function() {
+			this.running = false;
+		},
+		
+		play: function() {
+			this.running = true;
+		},
 	};
 
 	// RIPPLES PLUGIN DEFINITION
@@ -551,8 +564,8 @@
 			var $this   = $(this);
 			var data    = $this.data('ripples');
 			var options = $.extend({}, Ripples.DEFAULTS, $this.data(), typeof option == 'object' && option);
-			
-			if (!data && typeof option == 'string' && option == 'destroy') return;
+
+			if (!data && typeof option == 'string') return;
 			if (!data) $this.data('ripples', (data = new Ripples(this, options)));
 			else if (typeof option == 'string') Ripples.prototype[option].apply(data, args);
 		});
