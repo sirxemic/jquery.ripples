@@ -29,8 +29,8 @@ main {
 	display: inline-block;
 	vertical-align: middle;
 	background: url(img/bg.jpg);
-	padding:  150px;
-	max-width: 400px;
+	padding:  100px;
+	max-width: 500px;
 	text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 	box-shadow: 0 5px 15px rgba(0,0,0,0.5);
 }
@@ -65,12 +65,35 @@ pre {
 	max-width: 50%;
 }
 
+button {
+	font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  padding: 0 0.8em;
+	line-height: 2em;
+	border: none;
+	background: #666;
+	color: #fff;
+	text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+	border-radius: 4px;
+	cursor: pointer;
+	margin-bottom: 0.5em;
+	box-shadow: 0 2px 3px rgba(0,0,0,0.5);
+}
+
+button:hover {
+	background: #888;
+}
+
+code { font-size: 0.8em; display: inline; }
+
 .disable {
 	position: fixed;
 	bottom: 0;
 	right: 0;
-	max-width: 50%;
 }
+
+.code-string { color:#ec7600 }
+.code-cbracket { font-weight:bold }
+.code-number { color:#ffcd22 }
 
 </style>
 </head>
@@ -85,17 +108,32 @@ pre {
 	<p>It's as easy as:</p>
 	
 	<pre><code>
-$(<span style="color:#ec7600">'body'</span>).ripples(<span style="font-weight:bold">{</span>
-	resolution: <span style="color:#ffcd22">512</span>,
-	dropRadius: <span style="color:#ffcd22">20</span>,
-	perturbance: <span style="color:#ffcd22">0.04</span>,
-<span style="font-weight:bold">}</span>);
+$(<span class="code-string">'body'</span>).ripples(<span class="code-cbracket">{</span>
+	resolution: <span class="code-number">512</span>,
+	dropRadius: <span class="code-number">20</span>,
+	perturbance: <span class="code-number">0.04</span>,
+<span class="code-cbracket">}</span>);
 	</code></pre>
+	
+	<p>You can add drops programmatically by doing <code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"drop"</span>, x, y, radius, strength)</code></p>
+	
+	<p>And you can change its state:<br>
+	<button class="js-ripples-pause" type="button">
+		<code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"pause"</span>)</code>
+	</button>
+	
+	<button class="js-ripples-play" type="button">
+		<code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"play"</span>)</code>
+	</button>
+	</p>
 	
 	<p>Download or fork this effect at <a href="https://github.com/sirxemic/jquery.ripples/">Github</a>.</p>
 </main>
 
-<button class="disable" style="display: none">Click here if your PC can't handle this effect very well</button>
+<button class="js-ripples-disable disable">
+	Click here if your PC can't handle this effect very well 
+	(<code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"destroy"</span>)</code>)
+</button>
 
 <div class="error"></div>
 
@@ -119,9 +157,17 @@ $(document).ready(function() {
 		$('.error').show().text(e);
 	}
 
-	$('.disable').show().on('click', function() {
+	$('.js-ripples-disable').on('click', function() {
 		$('body, main').ripples('destroy');
 		$(this).hide();
+	});
+	
+	$('.js-ripples-play').on('click', function() {
+		$('body, main').ripples('play');
+	});
+	
+	$('.js-ripples-pause').on('click', function() {
+		$('body, main').ripples('pause');
 	});
 
 	// Automatic drops
