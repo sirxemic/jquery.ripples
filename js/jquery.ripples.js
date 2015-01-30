@@ -201,7 +201,7 @@
 		
 		// Init animation
 		function step() {
-			that.update();
+			that.step();
 			requestAnimationFrame(step);
 		}
 		
@@ -216,7 +216,7 @@
 	
 	Ripples.prototype = {
 
-		update: function() {
+		step: function() {
 			gl = this.context;
 			
 			if (!this.visible || !this.backgroundTexture) return;
