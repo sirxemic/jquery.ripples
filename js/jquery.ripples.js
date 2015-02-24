@@ -476,8 +476,8 @@
 		
 		dropAtMouse: function(e, radius, strength) {
 			this.drop(
-				e.offsetX || (e.pageX - this.$el.offset().left),
-				e.offsetY || (e.pageY - this.$el.offset().top),
+				e.pageX - this.$el.offset().left,
+				e.pageY - this.$el.offset().top,
 				radius, 
 				strength
 			);
