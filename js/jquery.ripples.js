@@ -295,8 +295,8 @@
 			}
 			else {
 				backgroundSize = backgroundSize.split(' ');
-				var backgroundWidth = backgroundSize[0];
-				var backgroundHeight = backgroundSize[1] || backgroundSize[0];
+				var backgroundWidth = backgroundSize[0] || '';
+				var backgroundHeight = backgroundSize[1] || backgroundWidth;
 				
 				if (backgroundWidth.endsWith('%')) backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
 				else if (backgroundWidth != 'auto') backgroundWidth = parseFloat(backgroundWidth);
@@ -315,8 +315,8 @@
 			}
 			
 			// Compute backgroundX and backgroundY in page coordinates
-			var backgroundX = backgroundPosition[0];
-			var backgroundY = backgroundPosition[1];
+			var backgroundX = backgroundPosition[0] || '';
+			var backgroundY = backgroundPosition[1] || backgroundX;
 			
 			if (backgroundX == 'left') backgroundX = winOffset.left;
 			else if (backgroundX == 'center') backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
