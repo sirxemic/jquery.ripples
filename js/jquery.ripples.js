@@ -9,9 +9,11 @@
 	var gl;
 	var $window = $(window); // There is only one window, so why not cache the jQuery-wrapped window?
 	
-	String.prototype.endsWith = function(suffix) {
-		return this.indexOf(suffix, this.length - suffix.length) !== -1;
-	}; // Stupid Chrome
+	if(typeof String.prototype.endsWith != 'function') {
+		String.prototype.endsWith = function(suffix) {
+			return this.indexOf(suffix, this.length - suffix.length) !== -1;
+		}; // Stupid Chrome
+	}
 	
 	function hasWebGLSupport() {
 		var canvas = document.createElement('canvas');
