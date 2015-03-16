@@ -9,9 +9,9 @@
 	var gl;
 	var $window = $(window); // There is only one window, so why not cache the jQuery-wrapped window?
 	
-	String.prototype.endsWith = function(suffix) {
-		return this.indexOf(suffix, this.length - suffix.length) !== -1;
-	}; // Stupid Chrome
+	function isPercentage(str) {
+		return str[str.length - 1] == '%';
+	}
 	
 	function hasWebGLSupport() {
 		var canvas = document.createElement('canvas');
@@ -298,10 +298,10 @@
 				var backgroundWidth = backgroundSize[0] || '';
 				var backgroundHeight = backgroundSize[1] || backgroundWidth;
 				
-				if (backgroundWidth.endsWith('%')) backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
+				if (isPercentage(backgroundWidth)) backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
 				else if (backgroundWidth != 'auto') backgroundWidth = parseFloat(backgroundWidth);
 				
-				if (backgroundHeight.endsWith('%')) backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
+				if (isPercentage(backgroundHeight)) backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
 				else if (backgroundHeight != 'auto') backgroundHeight = parseFloat(backgroundHeight);
 				
 				if (backgroundWidth == 'auto' && backgroundHeight == 'auto') {
@@ -321,7 +321,7 @@
 			if (backgroundX == 'left') backgroundX = winOffset.left;
 			else if (backgroundX == 'center') backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
 			else if (backgroundX == 'right') backgroundX = winOffset.left + winWidth - backgroundWidth;
-			else if (backgroundX.endsWith('%')) {
+			else if (isPercentage(backgroundX)) {
 				backgroundX = winOffset.left + (winWidth - backgroundWidth) * parseFloat(backgroundX) / 100;
 			}
 			else {
@@ -331,7 +331,7 @@
 			if (backgroundY == 'top') backgroundY = winOffset.top;
 			else if (backgroundY == 'center') backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
 			else if (backgroundY == 'bottom') backgroundY = winOffset.top + winHeight - backgroundHeight;
-			else if (backgroundY.endsWith('%')) {
+			else if (isPercentage(backgroundY)) {
 				backgroundY = winOffset.top + (winHeight - backgroundHeight) * parseFloat(backgroundY) / 100;
 			}
 			else {
