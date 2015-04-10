@@ -80,6 +80,7 @@
 		if (backgroundUrl == null) return;
 		backgroundUrl = backgroundUrl[1];
 		
+		this.interactive = options.interactive;
 		this.resolution = options.resolution || 256;
 		this.textureDelta = new Float32Array([1 / this.resolution, 1 / this.resolution]);
 		
@@ -116,9 +117,9 @@
 		});
 
 		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible && that.running) that.dropAtMouse(e, that.dropRadius, 0.01);
+			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius, 0.01);
 		}).on('mousedown.ripples', function(e) {
-			if (that.visible && that.running) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
 		});
 		
 		this.textures = [];
@@ -211,7 +212,8 @@
 	Ripples.DEFAULTS = {
 		resolution: 256,
 		dropRadius: 20,
-		perturbance: 0.03
+		perturbance: 0.03,
+		interactive: true
 	};
 	
 	Ripples.prototype = {
@@ -548,6 +550,16 @@
 		play: function() {
 			this.running = true;
 		},
+		
+		set: function(property, value)
+		{
+			switch (property)
+			{
+				case 'interactive': 
+					this.interactive = value;
+					break;
+			}
+		}
 	};
 
 	// RIPPLES PLUGIN DEFINITION
