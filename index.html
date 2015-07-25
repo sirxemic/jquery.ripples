@@ -106,7 +106,7 @@ code { font-size: 0.8em; display: inline; }
 	</header>
 	<p>Background images are often boring. Use this effect to make your static CSS background images more interactive!</p>
 	<p>It's as easy as:</p>
-	
+
 	<pre><code>
 $(<span class="code-string">'body'</span>).ripples(<span class="code-cbracket">{</span>
 	resolution: <span class="code-number">512</span>,
@@ -114,24 +114,24 @@ $(<span class="code-string">'body'</span>).ripples(<span class="code-cbracket">{
 	perturbance: <span class="code-number">0.04</span>,
 <span class="code-cbracket">}</span>);
 	</code></pre>
-	
+
 	<p>You can add drops programmatically by doing <code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"drop"</span>, x, y, radius, strength)</code></p>
-	
+
 	<p>And you can change its state:<br>
 	<button class="js-ripples-pause" type="button">
 		<code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"pause"</span>)</code>
 	</button>
-	
+
 	<button class="js-ripples-play" type="button">
 		<code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"play"</span>)</code>
 	</button>
 	</p>
-	
+
 	<p>Download or fork this effect at <a href="//github.com/sirxemic/jquery.ripples/">Github</a>.</p>
 </main>
 
 <button class="js-ripples-disable disable">
-	Click here if your PC can't handle this effect very well 
+	Click here if your PC can't handle this effect very well
 	(<code>$(<span class="code-string">'body'</span>).ripples(<span class="code-string">"destroy"</span>)</code>)
 </button>
 
@@ -162,11 +162,11 @@ $(document).ready(function() {
 		$('body, main').ripples('destroy');
 		$(this).hide();
 	});
-	
+
 	$('.js-ripples-play').on('click', function() {
 		$('body, main').ripples('play');
 	});
-	
+
 	$('.js-ripples-pause').on('click', function() {
 		$('body, main').ripples('pause');
 	});
@@ -178,7 +178,7 @@ $(document).ready(function() {
 		var y = Math.random() * $el.outerHeight();
 		var dropRadius = 20;
 		var strength = 0.04 + Math.random() * 0.04;
-		
+
 		$el.ripples('drop', x, y, dropRadius, strength);
 	}, 400);
 });
