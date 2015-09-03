@@ -200,6 +200,9 @@
 
 		this.visible = true;
 
+		gl.clearColor(0, 0, 0, 0);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
 		// Init animation
 		function step() {
 			that.step();
@@ -240,6 +243,8 @@
 
 		render: function() {
 			gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
+			gl.enable(gl.BLEND);
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 			gl.useProgram(this.renderProgram.id);
@@ -254,6 +259,7 @@
 			gl.uniform1i(this.renderProgram.locations.samplerRipples, 1);
 
 			this.drawQuad();
+			gl.disable(gl.BLEND);
 		},
 
 		update: function() {
