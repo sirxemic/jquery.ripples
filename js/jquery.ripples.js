@@ -80,11 +80,12 @@
 			var backgroundUrl = options.url;	
 		}else{
 			var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
+			if(backgroundUrl != null){
+				backgroundUrl = backgroundUrl[1];
+			}
 		}
 		if (backgroundUrl == null) {
 			backgroundUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
-		}else{
-			backgroundUrl = backgroundUrl[1];
 		}
 
 		this.interactive = options.interactive;
