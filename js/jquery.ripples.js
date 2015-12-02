@@ -75,6 +75,12 @@
 		this.$el = $(el);
 		this.$el.addClass('jquery-ripples');
 
+		// If this element doesn't have a background image, don't apply this effect to it
+		/*var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
+		if (backgroundUrl == null) return;
+		backgroundUrl = backgroundUrl[1];*/
+		//var backgroundUrl = options.url;
+
 		// If no background image, use a 1x1 transparent white pixel
 		if(options.url){
 			var backgroundUrl = options.url;	
@@ -124,11 +130,13 @@
 			}
 		});
 
-		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius, 0.01);
-		}).on('mousedown.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
-		});
+		if(!options.disableEvents){
+			this.$el.on('mousemove.ripples', function(e) {
+				if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius, 0.01);
+			}).on('mousedown.ripples', function(e) {
+				if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			});
+		}
 
 		this.textures = [];
 		this.framebuffers = [];
