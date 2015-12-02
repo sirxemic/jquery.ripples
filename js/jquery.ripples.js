@@ -75,10 +75,17 @@
 		this.$el = $(el);
 		this.$el.addClass('jquery-ripples');
 
-		// If this element doesn't have a background image, don't apply this effect to it
-		var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
-		if (backgroundUrl == null) return;
-		backgroundUrl = backgroundUrl[1];
+		// If no background image, use a 1x1 transparent white pixel
+		if(options.url){
+			var backgroundUrl = options.url;	
+		}else{
+			var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
+		}
+		if (backgroundUrl == null) {
+			backgroundUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+		}else{
+			backgroundUrl = backgroundUrl[1];
+		}
 
 		this.interactive = options.interactive;
 		this.resolution = options.resolution || 256;
