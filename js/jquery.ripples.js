@@ -63,6 +63,17 @@
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 	}
 
+	function getBackgroundImageUrl($el) {
+		var urlMatch = /url\(["']?([^"']*)["']?\)/.exec($el.css('background-image'));
+		if (urlMatch == null) return null;
+
+		return urlMatch[1];
+	}
+
+	function isDataUri(url) {
+		return url.match(/^data:/);
+	}
+
 	// Extend the css
 	$('head').prepend('<style>.jquery-ripples { position: relative; z-index: 0; }</style>');
 
@@ -76,9 +87,8 @@
 		this.$el.addClass('jquery-ripples');
 
 		// If this element doesn't have a background image, don't apply this effect to it
-		var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
-		if (backgroundUrl == null) return;
-		backgroundUrl = backgroundUrl[1];
+		var backgroundUrl = getBackgroundImageUrl(this.$el);
+		if (!backgroundUrl) return;
 
 		this.interactive = options.interactive;
 		this.resolution = options.resolution || 256;
@@ -168,7 +178,10 @@
 
 		// Init textures
 		var image = new Image;
-		image.crossOrigin = '';
+
+		// Disable CORS when the image source is a data URI.
+		image.crossOrigin = isDataUri(backgroundUrl) ? null : options.crossOrigin || '';
+
 		image.onload = function() {
 			gl = that.context;
 
@@ -216,7 +229,8 @@
 		resolution: 256,
 		dropRadius: 20,
 		perturbance: 0.03,
-		interactive: true
+		interactive: true,
+		crossOrigin: ''
 	};
 
 	Ripples.prototype = {
