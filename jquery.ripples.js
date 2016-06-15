@@ -266,6 +266,7 @@
 			bindTexture(this.backgroundTexture, 0);
 			bindTexture(this.textures[0], 1);
 
+			gl.uniform1f(this.renderProgram.locations.perturbance, this.perturbance);
 			gl.uniform2fv(this.renderProgram.locations.topLeft, this.renderProgram.uniforms.topLeft);
 			gl.uniform2fv(this.renderProgram.locations.bottomRight, this.renderProgram.uniforms.bottomRight);
 			gl.uniform2fv(this.renderProgram.locations.containerRatio, this.renderProgram.uniforms.containerRatio);
@@ -493,7 +494,6 @@
 					'gl_FragColor = texture2D(samplerBackground, backgroundCoord + offset * perturbance) + specular;',
 				'}'
 			].join('\n'));
-			gl.uniform1f(this.renderProgram.locations.perturbance, this.perturbance);
 		},
 
 		dropAtMouse: function(e, radius, strength) {
@@ -575,8 +575,10 @@
 		{
 			switch (property)
 			{
+				case 'dropRadius':
+				case 'perturbance':
 				case 'interactive':
-					this.interactive = value;
+					this[property] = value;
 					break;
 			}
 		}
