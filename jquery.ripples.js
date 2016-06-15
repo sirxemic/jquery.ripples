@@ -1,5 +1,5 @@
 /**
- * jQuery Ripples plugin v0.2.0 / http://github.com/sirxemic/jquery.ripples
+ * jQuery Ripples plugin v0.4.2 / http://github.com/sirxemic/jquery.ripples
  * MIT License
  * @author sirxemic / http://sirxemic.com/
  */
@@ -63,6 +63,17 @@
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 	}
 
+	function getBackgroundImageUrl($el) {
+		var urlMatch = /url\(["']?([^"']*)["']?\)/.exec($el.css('background-image'));
+		if (urlMatch == null) return null;
+
+		return urlMatch[1];
+	}
+
+	function isDataUri(url) {
+		return url.match(/^data:/);
+	}
+
 	// Extend the css
 	$('head').prepend('<style>.jquery-ripples { position: relative; z-index: 0; }</style>');
 
@@ -76,9 +87,8 @@
 		this.$el.addClass('jquery-ripples');
 
 		// If this element doesn't have a background image, don't apply this effect to it
-		var backgroundUrl = (/url\(["']?([^"']*)["']?\)/.exec(this.$el.css('background-image')));
-		if (backgroundUrl == null) return;
-		backgroundUrl = backgroundUrl[1];
+		var backgroundUrl = getBackgroundImageUrl(this.$el);
+		if (!backgroundUrl) return;
 
 		this.interactive = options.interactive;
 		this.resolution = options.resolution || 256;
@@ -168,7 +178,10 @@
 
 		// Init textures
 		var image = new Image;
-		image.crossOrigin = '';
+
+		// Disable CORS when the image source is a data URI.
+		image.crossOrigin = isDataUri(backgroundUrl) ? null : options.crossOrigin || '';
+
 		image.onload = function() {
 			gl = that.context;
 
@@ -216,7 +229,8 @@
 		resolution: 256,
 		dropRadius: 20,
 		perturbance: 0.03,
-		interactive: true
+		interactive: true,
+		crossOrigin: ''
 	};
 
 	Ripples.prototype = {
@@ -252,6 +266,7 @@
 			bindTexture(this.backgroundTexture, 0);
 			bindTexture(this.textures[0], 1);
 
+			gl.uniform1f(this.renderProgram.locations.perturbance, this.perturbance);
 			gl.uniform2fv(this.renderProgram.locations.topLeft, this.renderProgram.uniforms.topLeft);
 			gl.uniform2fv(this.renderProgram.locations.bottomRight, this.renderProgram.uniforms.bottomRight);
 			gl.uniform2fv(this.renderProgram.locations.containerRatio, this.renderProgram.uniforms.containerRatio);
@@ -479,7 +494,6 @@
 					'gl_FragColor = texture2D(samplerBackground, backgroundCoord + offset * perturbance) + specular;',
 				'}'
 			].join('\n'));
-			gl.uniform1f(this.renderProgram.locations.perturbance, this.perturbance);
 		},
 
 		dropAtMouse: function(e, radius, strength) {
@@ -561,8 +575,10 @@
 		{
 			switch (property)
 			{
+				case 'dropRadius':
+				case 'perturbance':
 				case 'interactive':
-					this.interactive = value;
+					this[property] = value;
 					break;
 			}
 		}
