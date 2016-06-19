@@ -497,9 +497,12 @@
 		},
 
 		dropAtMouse: function(e, radius, strength) {
+			var borderLeft = parseInt(this.$el.css('border-left-width')) || 0,
+					borderTop = parseInt(this.$el.css('border-top-width')) || 0;
+
 			this.drop(
-				e.pageX - this.$el.offset().left,
-				e.pageY - this.$el.offset().top,
+				e.pageX - this.$el.offset().left - borderLeft,
+				e.pageY - this.$el.offset().top - borderTop,
 				radius,
 				strength
 			);
@@ -510,8 +513,8 @@
 
 			gl = this.context;
 
-			var elWidth = this.$el.outerWidth();
-			var elHeight = this.$el.outerHeight();
+			var elWidth = this.$el.innerWidth();
+			var elHeight = this.$el.innerHeight();
 			var longestSide = Math.max(elWidth, elHeight);
 
 			radius = radius / longestSide;
