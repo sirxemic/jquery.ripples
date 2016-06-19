@@ -120,9 +120,12 @@
 
 		// Init events
 		$(window).on('resize', function() {
-			if (that.$el.innerWidth() != that.canvas.width || that.$el.innerHeight() != that.canvas.height) {
-				canvas.width = that.$el.innerWidth();
-				canvas.height = that.$el.innerHeight();
+			var newWidth = that.$el.innerWidth(),
+					newHeight = that.$el.innerHeight();
+
+			if (newWidth != that.canvas.width || newHeight != that.canvas.height) {
+				canvas.width = newWidth;
+				canvas.height = newHeight;
 			}
 		});
 
@@ -606,7 +609,7 @@
 			if (!data) $this.data('ripples', (data = new Ripples(this, options)));
 			else if (typeof option == 'string') Ripples.prototype[option].apply(data, args);
 		});
-	}
+	};
 
 	$.fn.ripples.Constructor = Ripples;
 
@@ -617,6 +620,6 @@
 	$.fn.ripples.noConflict = function() {
 		$.fn.ripples = old;
 		return this;
-	}
+	};
 
 }(window.jQuery);
