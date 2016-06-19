@@ -65,7 +65,9 @@
 
 	function getBackgroundImageUrl($el) {
 		var urlMatch = /url\(["']?([^"']*)["']?\)/.exec($el.css('background-image'));
-		if (urlMatch == null) return null;
+		if (urlMatch == null) {
+			return null;
+		}
 
 		return urlMatch[1];
 	}
@@ -88,7 +90,9 @@
 
 		// If this element doesn't have a background image, don't apply this effect to it
 		var backgroundUrl = getBackgroundImageUrl(this.$el);
-		if (!backgroundUrl) return;
+		if (!backgroundUrl) {
+			return;
+		}
 
 		this.interactive = options.interactive;
 		this.resolution = options.resolution || 256;
@@ -130,9 +134,13 @@
 		});
 
 		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius, 0.01);
+			if (that.visible && that.running && that.interactive) {
+				that.dropAtMouse(e, that.dropRadius, 0.01);
+			}
 		}).on('mousedown.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			if (that.visible && that.running && that.interactive) {
+				that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			}
 		});
 
 		this.textures = [];
@@ -241,7 +249,9 @@
 		step: function() {
 			gl = this.context;
 
-			if (!this.visible || !this.backgroundTexture) return;
+			if (!this.visible || !this.backgroundTexture) {
+				return;
+			}
 
 			this.computeTextureBoundaries();
 
@@ -324,19 +334,32 @@
 				var backgroundWidth = backgroundSize[0] || '';
 				var backgroundHeight = backgroundSize[1] || backgroundWidth;
 
-				if (isPercentage(backgroundWidth)) backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
-				else if (backgroundWidth != 'auto') backgroundWidth = parseFloat(backgroundWidth);
+				if (isPercentage(backgroundWidth)) {
+					backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
+				}
+				else if (backgroundWidth != 'auto') {
+					backgroundWidth = parseFloat(backgroundWidth);
+				}
 
-				if (isPercentage(backgroundHeight)) backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
-				else if (backgroundHeight != 'auto') backgroundHeight = parseFloat(backgroundHeight);
+				if (isPercentage(backgroundHeight)) {
+					backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
+				}
+				else if (backgroundHeight != 'auto') {
+					backgroundHeight = parseFloat(backgroundHeight);
+				}
 
 				if (backgroundWidth == 'auto' && backgroundHeight == 'auto') {
 					backgroundWidth = this.backgroundWidth;
 					backgroundHeight = this.backgroundHeight;
 				}
 				else {
-					if (backgroundWidth == 'auto') backgroundWidth = this.backgroundWidth * (backgroundHeight / this.backgroundHeight);
-					if (backgroundHeight == 'auto') backgroundHeight = this.backgroundHeight * (backgroundWidth / this.backgroundWidth);
+					if (backgroundWidth == 'auto') {
+						backgroundWidth = this.backgroundWidth * (backgroundHeight / this.backgroundHeight);
+					}
+
+					if (backgroundHeight == 'auto') {
+						backgroundHeight = this.backgroundHeight * (backgroundWidth / this.backgroundWidth);
+					}
 				}
 			}
 
@@ -344,9 +367,15 @@
 			var backgroundX = backgroundPosition[0] || '';
 			var backgroundY = backgroundPosition[1] || backgroundX;
 
-			if (backgroundX == 'left') backgroundX = winOffset.left;
-			else if (backgroundX == 'center') backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
-			else if (backgroundX == 'right') backgroundX = winOffset.left + winWidth - backgroundWidth;
+			if (backgroundX == 'left') {
+				backgroundX = winOffset.left;
+			}
+			else if (backgroundX == 'center') {
+				backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
+			}
+			else if (backgroundX == 'right') {
+				backgroundX = winOffset.left + winWidth - backgroundWidth;
+			}
 			else if (isPercentage(backgroundX)) {
 				backgroundX = winOffset.left + (winWidth - backgroundWidth) * parseFloat(backgroundX) / 100;
 			}
@@ -354,9 +383,15 @@
 				backgroundX = parseFloat(backgroundX);
 			}
 
-			if (backgroundY == 'top') backgroundY = winOffset.top;
-			else if (backgroundY == 'center') backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
-			else if (backgroundY == 'bottom') backgroundY = winOffset.top + winHeight - backgroundHeight;
+			if (backgroundY == 'top') {
+				backgroundY = winOffset.top;
+			}
+			else if (backgroundY == 'center') {
+				backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
+			}
+			else if (backgroundY == 'bottom') {
+				backgroundY = winOffset.top + winHeight - backgroundHeight;
+			}
 			else if (isPercentage(backgroundY)) {
 				backgroundY = winOffset.top + (winHeight - backgroundHeight) * parseFloat(backgroundY) / 100;
 			}
@@ -577,10 +612,8 @@
 			this.running = true;
 		},
 
-		set: function(property, value)
-		{
-			switch (property)
-			{
+		set: function(property, value) {
+			switch (property) {
 				case 'dropRadius':
 				case 'perturbance':
 				case 'interactive':
@@ -596,18 +629,26 @@
 	var old = $.fn.ripples;
 
 	$.fn.ripples = function(option) {
-		if (!supportsWebGL) throw new Error('Your browser does not support WebGL or the OES_texture_float extension.');
+		if (!supportsWebGL) {
+			throw new Error('Your browser does not support WebGL or the OES_texture_float extension.');
+		}
 
 		var args = (arguments.length > 1) ? Array.prototype.slice.call(arguments, 1) : undefined;
 
 		return this.each(function() {
-			var $this   = $(this);
-			var data    = $this.data('ripples');
-			var options = $.extend({}, Ripples.DEFAULTS, $this.data(), typeof option == 'object' && option);
+			var $this = $(this),
+					data = $this.data('ripples'),
+					options = $.extend({}, Ripples.DEFAULTS, $this.data(), typeof option == 'object' && option);
 
-			if (!data && typeof option == 'string') return;
-			if (!data) $this.data('ripples', (data = new Ripples(this, options)));
-			else if (typeof option == 'string') Ripples.prototype[option].apply(data, args);
+			if (!data && typeof option == 'string') {
+				return;
+			}
+			if (!data) {
+				$this.data('ripples', (data = new Ripples(this, options)));
+			}
+			else if (typeof option == 'string') {
+				Ripples.prototype[option].apply(data, args);
+			}
 		});
 	};
 
