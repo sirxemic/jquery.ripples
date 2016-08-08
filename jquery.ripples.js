@@ -49,7 +49,7 @@
 		program.locations = {};
 		gl.useProgram(program.id);
 		gl.enableVertexAttribArray(0);
-		var match, name, type, regex = /uniform (\w+) (\w+)/g, shaderCode = vertexSource + fragmentSource;
+		var match, name, regex = /uniform (\w+) (\w+)/g, shaderCode = vertexSource + fragmentSource;
 		while ((match = regex.exec(shaderCode)) != null) {
 			name = match[2];
 			program.locations[name] = gl.getUniformLocation(program.id, name);
@@ -622,8 +622,6 @@
 		 *  Public methods
 		 */
 		drop: function(x, y, radius, strength) {
-			var that = this;
-
 			gl = this.context;
 
 			var elWidth = this.$el.innerWidth();
