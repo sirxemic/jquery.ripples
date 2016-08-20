@@ -1,10 +1,25 @@
-/**
- * jQuery Ripples plugin v0.4.2 / http://github.com/sirxemic/jquery.ripples
+/*!
+ * jQuery Ripples plugin v0.5.0 / http://github.com/sirxemic/jquery.ripples
  * MIT License
  * @author sirxemic / http://sirxemic.com/
  */
 
-+function ($) {
+(function(factory) {
+	if (typeof define === 'function' && define.amd) {
+		// AMD. Register as an anonymous module.
+		define(['jquery'], factory);
+	}
+	else if (typeof exports === 'object') {
+		// Node/CommonJS
+		factory(require('jquery'));
+	}
+	else {
+		// Browser globals
+		factory(jQuery);
+	}
+}(function($) {
+
+	'use strict';
 
 	var gl;
 	var $window = $(window); // There is only one window, so why not cache the jQuery-wrapped window?
@@ -22,8 +37,7 @@
 
 	var supportsWebGL = hasWebGLSupport();
 
-	function createProgram(vertexSource, fragmentSource, uniformValues)
-	{
+	function createProgram(vertexSource, fragmentSource, uniformValues) {
 		function compileSource(type, source) {
 			var shader = gl.createShader(type);
 			gl.shaderSource(shader, source);
@@ -49,7 +63,7 @@
 		program.locations = {};
 		gl.useProgram(program.id);
 		gl.enableVertexAttribArray(0);
-		var name, type, regex = /uniform (\w+) (\w+)/g, shaderCode = vertexSource + fragmentSource;
+		var match, name, regex = /uniform (\w+) (\w+)/g, shaderCode = vertexSource + fragmentSource;
 		while ((match = regex.exec(shaderCode)) != null) {
 			name = match[2];
 			program.locations[name] = gl.getUniformLocation(program.id, name);
@@ -63,9 +77,11 @@
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 	}
 
-	function getBackgroundImageUrl($el) {
-		var urlMatch = /url\(["']?([^"']*)["']?\)/.exec($el.css('background-image'));
-		if (urlMatch == null) return null;
+	function extractUrl(value) {
+		var urlMatch = /url\(["']?([^"']*)["']?\)/.exec(value);
+		if (urlMatch == null) {
+			return null;
+		}
 
 		return urlMatch[1];
 	}
@@ -84,19 +100,19 @@
 		var that = this;
 
 		this.$el = $(el);
-		this.$el.addClass('jquery-ripples');
 
-		// If this element doesn't have a background image, don't apply this effect to it
-		var backgroundUrl = getBackgroundImageUrl(this.$el);
-		if (!backgroundUrl) return;
-
+		// Init properties from options
 		this.interactive = options.interactive;
-		this.resolution = options.resolution || 256;
+		this.resolution = options.resolution;
 		this.textureDelta = new Float32Array([1 / this.resolution, 1 / this.resolution]);
 
 		this.perturbance = options.perturbance;
 		this.dropRadius = options.dropRadius;
 
+		this.crossOrigin = options.crossOrigin;
+		this.imageUrl = options.imageUrl;
+
+		// Init WebGL canvas
 		var canvas = document.createElement('canvas');
 		canvas.width = this.$el.innerWidth();
 		canvas.height = this.$el.innerHeight();
@@ -111,27 +127,36 @@
 			zIndex: -1
 		});
 
-		this.$el.append(canvas);
+		this.$el.addClass('jquery-ripples').append(canvas);
 		this.context = gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
 		// Load extensions
 		gl.getExtension('OES_texture_float');
 		var linearSupport = gl.getExtension('OES_texture_float_linear');
 
-		// Init events
+		// Start listening to window resize events
 		$(window).on('resize', function() {
-			if (that.$el.innerWidth() != that.canvas.width || that.$el.innerHeight() != that.canvas.height) {
-				canvas.width = that.$el.innerWidth();
-				canvas.height = that.$el.innerHeight();
+			var newWidth = that.$el.innerWidth(),
+					newHeight = that.$el.innerHeight();
+
+			if (newWidth != that.canvas.width || newHeight != that.canvas.height) {
+				canvas.width = newWidth;
+				canvas.height = newHeight;
 			}
 		});
 
+		// Start listening to mouse events
 		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius, 0.01);
+			if (that.visible && that.running && that.interactive) {
+				that.dropAtMouse(e, that.dropRadius, 0.01);
+			}
 		}).on('mousedown.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			if (that.visible && that.running && that.interactive) {
+				that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
+			}
 		});
 
+		// Init rendertargets for ripple data.
 		this.textures = [];
 		this.framebuffers = [];
 
@@ -162,8 +187,6 @@
 			this.framebuffers.push(framebuffer);
 		}
 
-		this.running = true;
-
 		// Init GL stuff
 		this.quad = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
@@ -175,46 +198,20 @@
 		]), gl.STATIC_DRAW);
 
 		this.initShaders();
+		this.initTexture();
+		this.setTransparentTexture();
 
-		// Init textures
-		var image = new Image;
+		// Load the image either from the options or CSS rules
+		this.loadImage();
 
-		// Disable CORS when the image source is a data URI.
-		image.crossOrigin = isDataUri(backgroundUrl) ? null : options.crossOrigin || '';
-
-		image.onload = function() {
-			gl = that.context;
-
-			function isPowerOfTwo(x) {
-				return (x & (x - 1)) == 0;
-			}
-
-			var wrapping = (isPowerOfTwo(image.width) && isPowerOfTwo(image.height)) ? gl.REPEAT : gl.CLAMP_TO_EDGE;
-
-			that.backgroundWidth = image.width;
-			that.backgroundHeight = image.height;
-
-			var texture = gl.createTexture();
-
-			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapping);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapping);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-
-			that.backgroundTexture = texture;
-
-			// Everything loaded successfully - hide the CSS background image
-			that.$el.css('backgroundImage', 'none');
-		};
-		image.src = backgroundUrl;
-
-		this.visible = true;
-
+		// Set correct clear color and blend mode (regular alpha blending)
 		gl.clearColor(0, 0, 0, 0);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+		// Plugin is successfully initialized!
+		this.visible = true;
+		this.running = true;
+		this.inited = true;
 
 		// Init animation
 		function step() {
@@ -226,6 +223,7 @@
 	};
 
 	Ripples.DEFAULTS = {
+		imageUrl: null,
 		resolution: 256,
 		dropRadius: 20,
 		perturbance: 0.03,
@@ -235,10 +233,72 @@
 
 	Ripples.prototype = {
 
+		// Load the image either from the options or the element's CSS rules.
+		loadImage: function() {
+			var that = this;
+
+			gl = this.context;
+
+			var newImageSource = this.imageUrl ||
+				extractUrl(this.originalCssBackgroundImage) ||
+				extractUrl(this.$el.css('backgroundImage'));
+
+			// If image source is unchanged, don't reload it.
+			if (newImageSource == this.imageSource) {
+				return;
+			}
+
+			this.imageSource = newImageSource;
+
+			// Falsy source means no background.
+			if (!this.imageSource) {
+				this.setTransparentTexture();
+				return;
+			}
+
+			// Load the texture from a new image.
+			var image = new Image;
+			image.onload = function() {
+				gl = that.context;
+
+				// Only textures with dimensions of powers of two can have repeat wrapping.
+				function isPowerOfTwo(x) {
+					return (x & (x - 1)) == 0;
+				}
+
+				var wrapping = (isPowerOfTwo(image.width) && isPowerOfTwo(image.height)) ? gl.REPEAT : gl.CLAMP_TO_EDGE;
+
+				gl.bindTexture(gl.TEXTURE_2D, that.backgroundTexture);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapping);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapping);
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+				that.backgroundWidth = image.width;
+				that.backgroundHeight = image.height;
+
+				// Hide the background that we're replacing.
+				that.hideCssBackground();
+			};
+
+			// Fall back to a transparent texture when loading the image failed.
+			image.onerror = function() {
+				gl = that.context;
+
+				that.setTransparentTexture();
+			};
+
+			// Disable CORS when the image source is a data URI.
+			image.crossOrigin = isDataUri(this.imageSource) ? null : this.crossOrigin;
+
+			image.src = this.imageSource;
+		},
+
 		step: function() {
 			gl = this.context;
 
-			if (!this.visible || !this.backgroundTexture) return;
+			if (!this.visible) {
+				return;
+			}
 
 			this.computeTextureBoundaries();
 
@@ -321,19 +381,32 @@
 				var backgroundWidth = backgroundSize[0] || '';
 				var backgroundHeight = backgroundSize[1] || backgroundWidth;
 
-				if (isPercentage(backgroundWidth)) backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
-				else if (backgroundWidth != 'auto') backgroundWidth = parseFloat(backgroundWidth);
+				if (isPercentage(backgroundWidth)) {
+					backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
+				}
+				else if (backgroundWidth != 'auto') {
+					backgroundWidth = parseFloat(backgroundWidth);
+				}
 
-				if (isPercentage(backgroundHeight)) backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
-				else if (backgroundHeight != 'auto') backgroundHeight = parseFloat(backgroundHeight);
+				if (isPercentage(backgroundHeight)) {
+					backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
+				}
+				else if (backgroundHeight != 'auto') {
+					backgroundHeight = parseFloat(backgroundHeight);
+				}
 
 				if (backgroundWidth == 'auto' && backgroundHeight == 'auto') {
 					backgroundWidth = this.backgroundWidth;
 					backgroundHeight = this.backgroundHeight;
 				}
 				else {
-					if (backgroundWidth == 'auto') backgroundWidth = this.backgroundWidth * (backgroundHeight / this.backgroundHeight);
-					if (backgroundHeight == 'auto') backgroundHeight = this.backgroundHeight * (backgroundWidth / this.backgroundWidth);
+					if (backgroundWidth == 'auto') {
+						backgroundWidth = this.backgroundWidth * (backgroundHeight / this.backgroundHeight);
+					}
+
+					if (backgroundHeight == 'auto') {
+						backgroundHeight = this.backgroundHeight * (backgroundWidth / this.backgroundWidth);
+					}
 				}
 			}
 
@@ -341,9 +414,15 @@
 			var backgroundX = backgroundPosition[0] || '';
 			var backgroundY = backgroundPosition[1] || backgroundX;
 
-			if (backgroundX == 'left') backgroundX = winOffset.left;
-			else if (backgroundX == 'center') backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
-			else if (backgroundX == 'right') backgroundX = winOffset.left + winWidth - backgroundWidth;
+			if (backgroundX == 'left') {
+				backgroundX = winOffset.left;
+			}
+			else if (backgroundX == 'center') {
+				backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
+			}
+			else if (backgroundX == 'right') {
+				backgroundX = winOffset.left + winWidth - backgroundWidth;
+			}
 			else if (isPercentage(backgroundX)) {
 				backgroundX = winOffset.left + (winWidth - backgroundWidth) * parseFloat(backgroundX) / 100;
 			}
@@ -351,9 +430,15 @@
 				backgroundX = parseFloat(backgroundX);
 			}
 
-			if (backgroundY == 'top') backgroundY = winOffset.top;
-			else if (backgroundY == 'center') backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
-			else if (backgroundY == 'bottom') backgroundY = winOffset.top + winHeight - backgroundHeight;
+			if (backgroundY == 'top') {
+				backgroundY = winOffset.top;
+			}
+			else if (backgroundY == 'center') {
+				backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
+			}
+			else if (backgroundY == 'bottom') {
+				backgroundY = winOffset.top + winHeight - backgroundHeight;
+			}
 			else if (isPercentage(backgroundY)) {
 				backgroundY = winOffset.top + (winHeight - backgroundHeight) * parseFloat(backgroundY) / 100;
 			}
@@ -496,22 +581,65 @@
 			].join('\n'));
 		},
 
+		initTexture: function() {
+
+			// Init transparent image data to fall back to when no texture can be loaded.
+			this.transparentPixels = new ImageData(32, 32);
+
+			this.backgroundTexture = gl.createTexture();
+			gl.bindTexture(gl.TEXTURE_2D, this.backgroundTexture);
+			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		},
+
+		setTransparentTexture: function() {
+			gl.bindTexture(gl.TEXTURE_2D, this.backgroundTexture);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.transparentPixels);
+		},
+
+		hideCssBackground: function() {
+
+			// Check whether we're changing inline CSS or overriding a global CSS rule.
+			var inlineCss = this.$el[0].style.backgroundImage;
+
+			if (inlineCss == 'none') {
+				return;
+			}
+
+			this.originalInlineCss = inlineCss;
+
+			this.originalCssBackgroundImage = this.$el.css('backgroundImage');
+			this.$el.css('backgroundImage', 'none');
+		},
+
+		restoreCssBackground: function() {
+
+			// Restore background by either changing the inline CSS rule to what it was, or
+			// simply remove the inline CSS rule if it never was inlined.
+			this.$el.css('backgroundImage', this.originalInlineCss || '');
+		},
+
 		dropAtMouse: function(e, radius, strength) {
+			var borderLeft = parseInt(this.$el.css('border-left-width')) || 0,
+					borderTop = parseInt(this.$el.css('border-top-width')) || 0;
+
 			this.drop(
-				e.pageX - this.$el.offset().left,
-				e.pageY - this.$el.offset().top,
+				e.pageX - this.$el.offset().left - borderLeft,
+				e.pageY - this.$el.offset().top - borderTop,
 				radius,
 				strength
 			);
 		},
 
+		/**
+		 *  Public methods
+		 */
 		drop: function(x, y, radius, strength) {
-			var that = this;
-
 			gl = this.context;
 
-			var elWidth = this.$el.outerWidth();
-			var elHeight = this.$el.outerHeight();
+			var elWidth = this.$el.innerWidth();
+			var elHeight = this.$el.innerHeight();
 			var longestSide = Math.max(elWidth, elHeight);
 
 			radius = radius / longestSide;
@@ -543,24 +671,28 @@
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		},
 
-		// Actions
 		destroy: function() {
+			this.$el
+				.off('.ripples')
+				.removeClass('jquery-ripples')
+				.removeData('ripples');
+
 			this.canvas.remove();
-			this.$el.off('.ripples');
-			this.$el.css('backgroundImage', '');
-			this.$el.removeClass('jquery-ripples').removeData('ripples');
+			this.restoreCssBackground();
 		},
 
 		show: function() {
-			this.$canvas.show();
-			this.$el.css('backgroundImage', 'none');
 			this.visible = true;
+
+			this.$canvas.show();
+			this.hideCssBackground();
 		},
 
 		hide: function() {
-			this.$canvas.hide();
-			this.$el.css('backgroundImage', '');
 			this.visible = false;
+
+			this.$canvas.hide();
+			this.restoreCssBackground();
 		},
 
 		pause: function() {
@@ -571,14 +703,17 @@
 			this.running = true;
 		},
 
-		set: function(property, value)
-		{
-			switch (property)
-			{
+		set: function(property, value) {
+			switch (property) {
 				case 'dropRadius':
 				case 'perturbance':
 				case 'interactive':
+				case 'crossOrigin':
 					this[property] = value;
+					break;
+				case 'imageUrl':
+					this.imageUrl = value;
+					this.loadImage();
 					break;
 			}
 		}
@@ -590,20 +725,28 @@
 	var old = $.fn.ripples;
 
 	$.fn.ripples = function(option) {
-		if (!supportsWebGL) throw new Error('Your browser does not support WebGL or the OES_texture_float extension.');
+		if (!supportsWebGL) {
+			throw new Error('Your browser does not support WebGL or the OES_texture_float extension.');
+		}
 
 		var args = (arguments.length > 1) ? Array.prototype.slice.call(arguments, 1) : undefined;
 
 		return this.each(function() {
-			var $this   = $(this);
-			var data    = $this.data('ripples');
-			var options = $.extend({}, Ripples.DEFAULTS, $this.data(), typeof option == 'object' && option);
+			var $this = $(this),
+					data = $this.data('ripples'),
+					options = $.extend({}, Ripples.DEFAULTS, $this.data(), typeof option == 'object' && option);
 
-			if (!data && typeof option == 'string') return;
-			if (!data) $this.data('ripples', (data = new Ripples(this, options)));
-			else if (typeof option == 'string') Ripples.prototype[option].apply(data, args);
+			if (!data && typeof option == 'string') {
+				return;
+			}
+			if (!data) {
+				$this.data('ripples', (data = new Ripples(this, options)));
+			}
+			else if (typeof option == 'string') {
+				Ripples.prototype[option].apply(data, args);
+			}
 		});
-	}
+	};
 
 	$.fn.ripples.Constructor = Ripples;
 
@@ -614,6 +757,6 @@
 	$.fn.ripples.noConflict = function() {
 		$.fn.ripples = old;
 		return this;
-	}
+	};
 
-}(window.jQuery);
+}));
