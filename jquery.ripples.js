@@ -35,6 +35,22 @@
 		return result;
 	}
 
+	function createEmptyData(width, height) {
+		try {
+			return new ImageData(width, height);
+		}
+		catch (e) {
+			// Fallback for IE
+			var canvas = document.createElement('canvas');
+			canvas.width = width;
+			canvas.height = height;
+
+			return canvas.getContext('2d').getImageData(0, 0, width, height);
+		}
+	}
+
+	var transparentPixels = createEmptyData(32, 32);
+
 	var supportsWebGL = hasWebGLSupport();
 
 	function createProgram(vertexSource, fragmentSource, uniformValues) {
@@ -582,10 +598,6 @@
 		},
 
 		initTexture: function() {
-
-			// Init transparent image data to fall back to when no texture can be loaded.
-			this.transparentPixels = new ImageData(32, 32);
-
 			this.backgroundTexture = gl.createTexture();
 			gl.bindTexture(gl.TEXTURE_2D, this.backgroundTexture);
 			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
@@ -595,7 +607,7 @@
 
 		setTransparentTexture: function() {
 			gl.bindTexture(gl.TEXTURE_2D, this.backgroundTexture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.transparentPixels);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, transparentPixels);
 		},
 
 		hideCssBackground: function() {
@@ -677,7 +689,7 @@
 				.removeClass('jquery-ripples')
 				.removeData('ripples');
 
-			this.canvas.remove();
+			this.$canvas.remove();
 			this.restoreCssBackground();
 		},
 
