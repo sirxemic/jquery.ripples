@@ -4,7 +4,22 @@
  * @author sirxemic / http://sirxemic.com/
  */
 
-+function ($) {
+(function(factory) {
+	if (typeof define === 'function' && define.amd) {
+		// AMD. Register as an anonymous module.
+		define(['jquery'], factory);
+	}
+	else if (typeof exports === 'object') {
+		// Node/CommonJS
+		factory(require('jquery'));
+	}
+	else {
+		// Browser globals
+		factory(jQuery);
+	}
+}(function($) {
+
+	'use strict';
 
 	var gl;
 	var $window = $(window); // There is only one window, so why not cache the jQuery-wrapped window?
@@ -22,8 +37,7 @@
 
 	var supportsWebGL = hasWebGLSupport();
 
-	function createProgram(vertexSource, fragmentSource, uniformValues)
-	{
+	function createProgram(vertexSource, fragmentSource, uniformValues) {
 		function compileSource(type, source) {
 			var shader = gl.createShader(type);
 			gl.shaderSource(shader, source);
@@ -745,4 +759,4 @@
 		return this;
 	};
 
-}(window.jQuery);
+}));
