@@ -49,6 +49,43 @@
 		}
 	}
 
+	function translateBackgroundPosition(value) {
+		var parts = value.split(' ');
+
+		if (parts.length === 1) {
+			switch (value) {
+				case 'center':
+					return ['50%', '50%'];
+				case 'top':
+					return ['50%', '0'];
+				case 'bottom':
+					return ['50%', '100%'];
+				case 'left':
+					return ['0', '50%'];
+				case 'right':
+					return ['100%', '50%'];
+				default:
+					return [value, '50%'];
+			}
+		}
+		else {
+			return parts.map(function(part) {
+				switch (value) {
+					case 'center':
+						return '50%';
+					case 'top':
+					case 'left':
+						return '0';
+					case 'right':
+					case 'bottom':
+						return '100%';
+					default:
+						return part;
+				}
+			});
+		}
+	}
+
 	var transparentPixels = createEmptyData(32, 32);
 
 	var supportsWebGL = hasWebGLSupport();
@@ -370,7 +407,7 @@
 		computeTextureBoundaries: function() {
 			var backgroundSize = this.$el.css('background-size');
 			var backgroundAttachment = this.$el.css('background-attachment');
-			var backgroundPosition = this.$el.css('background-position').split(' ');
+			var backgroundPosition = translateBackgroundPosition(this.$el.css('background-position'));
 
 			// Here the 'window' is the element which the background adapts to
 			// (either the chrome window or some element, depending on attachment)
@@ -427,39 +464,21 @@
 			}
 
 			// Compute backgroundX and backgroundY in page coordinates
-			var backgroundX = backgroundPosition[0] || '';
-			var backgroundY = backgroundPosition[1] || backgroundX;
+			var backgroundX = backgroundPosition[0];
+			var backgroundY = backgroundPosition[1];
 
-			if (backgroundX == 'left') {
-				backgroundX = winOffset.left;
-			}
-			else if (backgroundX == 'center') {
-				backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
-			}
-			else if (backgroundX == 'right') {
-				backgroundX = winOffset.left + winWidth - backgroundWidth;
-			}
-			else if (isPercentage(backgroundX)) {
+			if (isPercentage(backgroundX)) {
 				backgroundX = winOffset.left + (winWidth - backgroundWidth) * parseFloat(backgroundX) / 100;
 			}
 			else {
-				backgroundX = parseFloat(backgroundX);
+				backgroundX = winOffset.left + parseFloat(backgroundX);
 			}
 
-			if (backgroundY == 'top') {
-				backgroundY = winOffset.top;
-			}
-			else if (backgroundY == 'center') {
-				backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
-			}
-			else if (backgroundY == 'bottom') {
-				backgroundY = winOffset.top + winHeight - backgroundHeight;
-			}
-			else if (isPercentage(backgroundY)) {
+			if (isPercentage(backgroundY)) {
 				backgroundY = winOffset.top + (winHeight - backgroundHeight) * parseFloat(backgroundY) / 100;
 			}
 			else {
-				backgroundY = parseFloat(backgroundY);
+				backgroundY = winOffset.top + parseFloat(backgroundY);
 			}
 
 			var elementOffset = this.$el.offset();
