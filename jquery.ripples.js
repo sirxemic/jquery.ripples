@@ -409,22 +409,29 @@
 			var backgroundAttachment = this.$el.css('background-attachment');
 			var backgroundPosition = translateBackgroundPosition(this.$el.css('background-position'));
 
-			// Here the 'window' is the element which the background adapts to
+			// Here the 'container' is the element which the background adapts to
 			// (either the chrome window or some element, depending on attachment)
-			var parElement = backgroundAttachment == 'fixed' ? $window : this.$el;
-			var winOffset = parElement.offset() || {left: pageXOffset, top: pageYOffset};
-			var winWidth = parElement.innerWidth();
-			var winHeight = parElement.innerHeight();
+			var container;
+			if (backgroundAttachment == 'fixed') {
+				container = { left: window.pageXOffset, top: window.pageYOffset };
+				container.width = $window.width();
+				container.height = $window.height();
+			}
+			else {
+				container = this.$el.offset();
+				container.width = this.$el.innerWidth();
+				container.height = this.$el.innerHeight();
+			}
 
 			// TODO: background-clip
 			if (backgroundSize == 'cover') {
-				var scale = Math.max(winWidth / this.backgroundWidth, winHeight / this.backgroundHeight);
+				var scale = Math.max(container.width / this.backgroundWidth, container.height / this.backgroundHeight);
 
 				var backgroundWidth = this.backgroundWidth * scale;
 				var backgroundHeight = this.backgroundHeight * scale;
 			}
 			else if (backgroundSize == 'contain') {
-				var scale = Math.min(winWidth / this.backgroundWidth, winHeight / this.backgroundHeight);
+				var scale = Math.min(container.width / this.backgroundWidth, container.height / this.backgroundHeight);
 
 				var backgroundWidth = this.backgroundWidth * scale;
 				var backgroundHeight = this.backgroundHeight * scale;
@@ -435,14 +442,14 @@
 				var backgroundHeight = backgroundSize[1] || backgroundWidth;
 
 				if (isPercentage(backgroundWidth)) {
-					backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
+					backgroundWidth = container.width * parseFloat(backgroundWidth) / 100;
 				}
 				else if (backgroundWidth != 'auto') {
 					backgroundWidth = parseFloat(backgroundWidth);
 				}
 
 				if (isPercentage(backgroundHeight)) {
-					backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
+					backgroundHeight = container.height * parseFloat(backgroundHeight) / 100;
 				}
 				else if (backgroundHeight != 'auto') {
 					backgroundHeight = parseFloat(backgroundHeight);
@@ -468,17 +475,17 @@
 			var backgroundY = backgroundPosition[1];
 
 			if (isPercentage(backgroundX)) {
-				backgroundX = winOffset.left + (winWidth - backgroundWidth) * parseFloat(backgroundX) / 100;
+				backgroundX = container.left + (container.width - backgroundWidth) * parseFloat(backgroundX) / 100;
 			}
 			else {
-				backgroundX = winOffset.left + parseFloat(backgroundX);
+				backgroundX = container.left + parseFloat(backgroundX);
 			}
 
 			if (isPercentage(backgroundY)) {
-				backgroundY = winOffset.top + (winHeight - backgroundHeight) * parseFloat(backgroundY) / 100;
+				backgroundY = container.top + (container.height - backgroundHeight) * parseFloat(backgroundY) / 100;
 			}
 			else {
-				backgroundY = winOffset.top + parseFloat(backgroundY);
+				backgroundY = container.top + parseFloat(backgroundY);
 			}
 
 			var elementOffset = this.$el.offset();
