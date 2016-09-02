@@ -212,6 +212,8 @@
 		// Init rendertargets for ripple data.
 		this.textures = [];
 		this.framebuffers = [];
+		this.bufferWriteIndex = 0;
+		this.bufferReadIndex = 1;
 
 		for (var i = 0; i < 2; i++) {
 			var texture = gl.createTexture();
@@ -232,9 +234,6 @@
 			if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) {
 				throw new Error('Rendering to this texture is not supported (incomplete framebuffer)');
 			}
-
-			gl.bindTexture(gl.TEXTURE_2D, null);
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 			this.textures.push(texture);
 			this.framebuffers.push(framebuffer);
@@ -369,6 +368,8 @@
 		},
 
 		render: function() {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
 			gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
 			gl.enable(gl.BLEND);
@@ -393,15 +394,18 @@
 		update: function() {
 			gl.viewport(0, 0, this.resolution, this.resolution);
 
-			for (var i = 0; i < 2; i++) {
-				gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[i]);
-				bindTexture(this.textures[1-i]);
-				gl.useProgram(this.updateProgram[i].id);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[this.bufferWriteIndex]);
+			bindTexture(this.textures[this.bufferReadIndex]);
+			gl.useProgram(this.updateProgram.id);
 
-				this.drawQuad();
-			}
+			this.drawQuad();
 
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			this.swapBufferIndices();
+		},
+
+		swapBufferIndices: function() {
+			this.bufferWriteIndex = 1 - this.bufferWriteIndex;
+			this.bufferReadIndex = 1 - this.bufferReadIndex;
 		},
 
 		computeTextureBoundaries: function() {
@@ -540,8 +544,7 @@
 				'}'
 			].join('\n'));
 
-			this.updateProgram = [0,0];
-			this.updateProgram[0] = createProgram(vertexShader, [
+			this.updateProgram = createProgram(vertexShader, [
 				'precision highp float;',
 
 				'uniform sampler2D texture;',
@@ -569,27 +572,7 @@
 					'gl_FragColor = info;',
 				'}'
 			].join('\n'));
-			gl.uniform2fv(this.updateProgram[0].locations.delta, this.textureDelta);
-
-			this.updateProgram[1] = createProgram(vertexShader, [
-				'precision highp float;',
-
-				'uniform sampler2D texture;',
-				'uniform vec2 delta;',
-
-				'varying vec2 coord;',
-
-				'void main() {',
-					'vec4 info = texture2D(texture, coord);',
-
-					'vec3 dx = vec3(delta.x, texture2D(texture, vec2(coord.x + delta.x, coord.y)).r - info.r, 0.0);',
-					'vec3 dy = vec3(0.0, texture2D(texture, vec2(coord.x, coord.y + delta.y)).r - info.r, delta.y);',
-					'info.ba = normalize(cross(dy, dx)).xz;',
-
-					'gl_FragColor = info;',
-				'}'
-			].join('\n'));
-			gl.uniform2fv(this.updateProgram[1].locations.delta, this.textureDelta);
+			gl.uniform2fv(this.updateProgram.locations.delta, this.textureDelta);
 
 			this.renderProgram = createProgram([
 				'precision highp float;',
@@ -611,16 +594,24 @@
 
 				'uniform sampler2D samplerBackground;',
 				'uniform sampler2D samplerRipples;',
+				'uniform vec2 delta;',
+
 				'uniform float perturbance;',
 				'varying vec2 ripplesCoord;',
 				'varying vec2 backgroundCoord;',
 
 				'void main() {',
-					'vec2 offset = -texture2D(samplerRipples, ripplesCoord).ba;',
+					'float height = texture2D(samplerRipples, ripplesCoord).r;',
+					'float heightX = texture2D(samplerRipples, vec2(ripplesCoord.x + delta.x, ripplesCoord.y)).r;',
+					'float heightY = texture2D(samplerRipples, vec2(ripplesCoord.x, ripplesCoord.y + delta.y)).r;',
+					'vec3 dx = vec3(delta.x, heightX - height, 0.0);',
+					'vec3 dy = vec3(0.0, heightY - height, delta.y);',
+					'vec2 offset = -normalize(cross(dy, dx)).xz;',
 					'float specular = pow(max(0.0, dot(offset, normalize(vec2(-0.6, 1.0)))), 4.0);',
 					'gl_FragColor = texture2D(samplerBackground, backgroundCoord + offset * perturbance) + specular;',
 				'}'
 			].join('\n'));
+			gl.uniform2fv(this.renderProgram.locations.delta, this.textureDelta);
 		},
 
 		initTexture: function() {
@@ -689,11 +680,8 @@
 
 			gl.viewport(0, 0, this.resolution, this.resolution);
 
-			// Render onto texture/framebuffer 0
-			gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[0]);
-
-			// Using texture 1
-			bindTexture(this.textures[1]);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[this.bufferWriteIndex]);
+			bindTexture(this.textures[this.bufferReadIndex]);
 
 			gl.useProgram(this.dropProgram.id);
 			gl.uniform2fv(this.dropProgram.locations.center, dropPosition);
@@ -702,11 +690,7 @@
 
 			this.drawQuad();
 
-			// Switch textures
-			var t = this.framebuffers[0]; this.framebuffers[0] = this.framebuffers[1]; this.framebuffers[1] = t;
-			t = this.textures[0]; this.textures[0] = this.textures[1]; this.textures[1] = t;
-
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			this.swapBufferIndices();
 		},
 
 		destroy: function() {
