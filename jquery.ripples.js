@@ -1,5 +1,5 @@
 /*!
- * jQuery Ripples plugin v0.5.2 / https://github.com/sirxemic/jquery.ripples
+ * jQuery Ripples plugin v0.5.3 / https://github.com/sirxemic/jquery.ripples
  * MIT License
  * @author sirxemic / https://sirxemic.com/
  */
