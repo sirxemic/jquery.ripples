@@ -281,17 +281,6 @@
 			}
 		});
 
-		// Start listening to mouse events
-		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) {
-				that.dropAtMouse(e, that.dropRadius, 0.01);
-			}
-		}).on('mousedown.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) {
-				that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
-			}
-		});
-
 		// Init rendertargets for ripple data.
 		this.textures = [];
 		this.framebuffers = [];
@@ -345,6 +334,8 @@
 		this.running = true;
 		this.inited = true;
 
+		this.setupPointerEvents();
+
 		// Init animation
 		function step() {
 			that.step();
@@ -364,6 +355,44 @@
 	};
 
 	Ripples.prototype = {
+
+		// Set up pointer (mouse + touch) events
+		setupPointerEvents: function() {
+			var that = this;
+
+			function pointerEventsEnabled() {
+				return that.visible && that.running && that.interactive;
+			}
+
+			function dropAtPointer(pointer, big) {
+				if (pointerEventsEnabled()) {
+					that.dropAtPointer(
+						pointer,
+						that.dropRadius * (big ? 1.5 : 1),
+						(big ? 0.14 : 0.01)
+					);
+				}
+			}
+
+			// Start listening to pointer events
+			this.$el
+
+				// Create regular, small ripples for mouse move and touch events...
+				.on('mousemove.ripples', function(e) {
+					dropAtPointer(e);
+				})
+				.on('touchmove.ripples, touchstart.ripples', function(e) {
+					var touches = e.originalEvent.changedTouches;
+					for (var i = 0; i < touches.length; i++) {
+						dropAtPointer(touches[i]);
+					}
+				})
+
+				// ...and only a big ripple on mouse down events.
+				.on('mousedown.ripples', function(e) {
+					dropAtPointer(e, true);
+				});
+		},
 
 		// Load the image either from the options or the element's CSS rules.
 		loadImage: function() {
@@ -729,13 +758,13 @@
 			this.$el.css('backgroundImage', this.originalInlineCss || '');
 		},
 
-		dropAtMouse: function(e, radius, strength) {
+		dropAtPointer: function(pointer, radius, strength) {
 			var borderLeft = parseInt(this.$el.css('border-left-width')) || 0,
 					borderTop = parseInt(this.$el.css('border-top-width')) || 0;
 
 			this.drop(
-				e.pageX - this.$el.offset().left - borderLeft,
-				e.pageY - this.$el.offset().top - borderTop,
+				pointer.pageX - this.$el.offset().left - borderLeft,
+				pointer.pageY - this.$el.offset().top - borderTop,
 				radius,
 				strength
 			);
