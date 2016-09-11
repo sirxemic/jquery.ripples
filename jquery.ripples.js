@@ -1,7 +1,7 @@
 /*!
- * jQuery Ripples plugin v0.5.0 / http://github.com/sirxemic/jquery.ripples
+ * jQuery Ripples plugin v0.5.3 / https://github.com/sirxemic/jquery.ripples
  * MIT License
- * @author sirxemic / http://sirxemic.com/
+ * @author sirxemic / https://sirxemic.com/
  */
 
 (function(factory) {
@@ -28,14 +28,146 @@
 		return str[str.length - 1] == '%';
 	}
 
-	function hasWebGLSupport() {
+	/**
+	 *  Load a configuration of GL settings which the browser supports.
+	 *  For example:
+	 *  - not all browsers support WebGL
+	 *  - not all browsers support floating point textures
+	 *  - not all browsers support linear filtering for floating point textures
+	 *  - not all browsers support rendering to floating point textures
+	 *  - some browsers *do* support rendering to half-floating point textures instead.
+	 */
+	function loadConfig() {
 		var canvas = document.createElement('canvas');
-		var context = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-		var result = context && context.getExtension('OES_texture_float');
-		return result;
+		gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+		if (!gl) {
+			// Browser does not support WebGL.
+			return null;
+		}
+
+		// Load extensions
+		var extensions = {};
+		[
+			'OES_texture_float',
+			'OES_texture_half_float',
+			'OES_texture_float_linear',
+			'OES_texture_half_float_linear'
+		].forEach(function(name) {
+			var extension = gl.getExtension(name);
+			if (extension) {
+				extensions[name] = extension;
+			}
+		});
+
+		// If no floating point extensions are supported we can bail out early.
+		if (!extensions.OES_texture_float) {
+			return null;
+		}
+
+		var configs = [];
+
+		function createConfig(type, glType) {
+			var name = 'OES_texture_' + type,
+					nameLinear = name + '_linear',
+					linearSupport = nameLinear in extensions,
+					configExtensions = [name];
+
+			if (linearSupport) {
+				configExtensions.push(nameLinear);
+			}
+
+			return {
+				type: glType,
+				linearSupport: linearSupport,
+				extensions: configExtensions
+			};
+		}
+
+		configs.push(
+			createConfig('float', gl.FLOAT)
+		);
+
+		if (extensions.OES_texture_half_float) {
+			configs.push(
+				createConfig('half_float', extensions.OES_texture_half_float.HALF_FLOAT_OES)
+			);
+		}
+
+		// Setup the texture and framebuffer
+		var texture = gl.createTexture();
+		var framebuffer = gl.createFramebuffer();
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+		// Check for each supported texture type if rendering to it is supported
+		var config = null;
+
+		for (var i = 0; i < configs.length; i++) {
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 32, 32, 0, gl.RGBA, configs[i].type, null);
+
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+			if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE) {
+				config = configs[i];
+				break;
+			}
+		}
+
+		return config;
 	}
 
-	var supportsWebGL = hasWebGLSupport();
+	function createImageData(width, height) {
+		try {
+			return new ImageData(width, height);
+		}
+		catch (e) {
+			// Fallback for IE
+			var canvas = document.createElement('canvas');
+			return canvas.getContext('2d').createImageData(width, height);
+		}
+	}
+
+	function translateBackgroundPosition(value) {
+		var parts = value.split(' ');
+
+		if (parts.length === 1) {
+			switch (value) {
+				case 'center':
+					return ['50%', '50%'];
+				case 'top':
+					return ['50%', '0'];
+				case 'bottom':
+					return ['50%', '100%'];
+				case 'left':
+					return ['0', '50%'];
+				case 'right':
+					return ['100%', '50%'];
+				default:
+					return [value, '50%'];
+			}
+		}
+		else {
+			return parts.map(function(part) {
+				switch (value) {
+					case 'center':
+						return '50%';
+					case 'top':
+					case 'left':
+						return '0';
+					case 'right':
+					case 'bottom':
+						return '100%';
+					default:
+						return part;
+				}
+			});
+		}
+	}
 
 	function createProgram(vertexSource, fragmentSource, uniformValues) {
 		function compileSource(type, source) {
@@ -90,6 +222,9 @@
 		return url.match(/^data:/);
 	}
 
+	var config = loadConfig();
+	var transparentPixels = createImageData(32, 32);
+
 	// Extend the css
 	$('head').prepend('<style>.jquery-ripples { position: relative; z-index: 0; }</style>');
 
@@ -131,8 +266,9 @@
 		this.context = gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
 		// Load extensions
-		gl.getExtension('OES_texture_float');
-		var linearSupport = gl.getExtension('OES_texture_float_linear');
+		config.extensions.forEach(function(name) {
+			gl.getExtension(name);
+		});
 
 		// Start listening to window resize events
 		$(window).on('resize', function() {
@@ -145,20 +281,11 @@
 			}
 		});
 
-		// Start listening to mouse events
-		this.$el.on('mousemove.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) {
-				that.dropAtMouse(e, that.dropRadius, 0.01);
-			}
-		}).on('mousedown.ripples', function(e) {
-			if (that.visible && that.running && that.interactive) {
-				that.dropAtMouse(e, that.dropRadius * 1.5, 0.14);
-			}
-		});
-
 		// Init rendertargets for ripple data.
 		this.textures = [];
 		this.framebuffers = [];
+		this.bufferWriteIndex = 0;
+		this.bufferReadIndex = 1;
 
 		for (var i = 0; i < 2; i++) {
 			var texture = gl.createTexture();
@@ -169,19 +296,13 @@
 			framebuffer.height = this.resolution;
 
 			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, linearSupport ? gl.LINEAR : gl.NEAREST);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, linearSupport ? gl.LINEAR : gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, config.linearSupport ? gl.LINEAR : gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, config.linearSupport ? gl.LINEAR : gl.NEAREST);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.resolution, this.resolution, 0, gl.RGBA, gl.FLOAT, null);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.resolution, this.resolution, 0, gl.RGBA, config.type, null);
 
 			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-			if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) {
-				throw new Error('Rendering to this texture is not supported (incomplete framebuffer)');
-			}
-
-			gl.bindTexture(gl.TEXTURE_2D, null);
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 			this.textures.push(texture);
 			this.framebuffers.push(framebuffer);
@@ -213,6 +334,8 @@
 		this.running = true;
 		this.inited = true;
 
+		this.setupPointerEvents();
+
 		// Init animation
 		function step() {
 			that.step();
@@ -232,6 +355,44 @@
 	};
 
 	Ripples.prototype = {
+
+		// Set up pointer (mouse + touch) events
+		setupPointerEvents: function() {
+			var that = this;
+
+			function pointerEventsEnabled() {
+				return that.visible && that.running && that.interactive;
+			}
+
+			function dropAtPointer(pointer, big) {
+				if (pointerEventsEnabled()) {
+					that.dropAtPointer(
+						pointer,
+						that.dropRadius * (big ? 1.5 : 1),
+						(big ? 0.14 : 0.01)
+					);
+				}
+			}
+
+			// Start listening to pointer events
+			this.$el
+
+				// Create regular, small ripples for mouse move and touch events...
+				.on('mousemove.ripples', function(e) {
+					dropAtPointer(e);
+				})
+				.on('touchmove.ripples, touchstart.ripples', function(e) {
+					var touches = e.originalEvent.changedTouches;
+					for (var i = 0; i < touches.length; i++) {
+						dropAtPointer(touches[i]);
+					}
+				})
+
+				// ...and only a big ripple on mouse down events.
+				.on('mousedown.ripples', function(e) {
+					dropAtPointer(e, true);
+				});
+		},
 
 		// Load the image either from the options or the element's CSS rules.
 		loadImage: function() {
@@ -316,6 +477,8 @@
 		},
 
 		render: function() {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
 			gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
 			gl.enable(gl.BLEND);
@@ -340,38 +503,48 @@
 		update: function() {
 			gl.viewport(0, 0, this.resolution, this.resolution);
 
-			for (var i = 0; i < 2; i++) {
-				gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[i]);
-				bindTexture(this.textures[1-i]);
-				gl.useProgram(this.updateProgram[i].id);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[this.bufferWriteIndex]);
+			bindTexture(this.textures[this.bufferReadIndex]);
+			gl.useProgram(this.updateProgram.id);
 
-				this.drawQuad();
-			}
+			this.drawQuad();
 
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			this.swapBufferIndices();
+		},
+
+		swapBufferIndices: function() {
+			this.bufferWriteIndex = 1 - this.bufferWriteIndex;
+			this.bufferReadIndex = 1 - this.bufferReadIndex;
 		},
 
 		computeTextureBoundaries: function() {
 			var backgroundSize = this.$el.css('background-size');
 			var backgroundAttachment = this.$el.css('background-attachment');
-			var backgroundPosition = this.$el.css('background-position').split(' ');
+			var backgroundPosition = translateBackgroundPosition(this.$el.css('background-position'));
 
-			// Here the 'window' is the element which the background adapts to
+			// Here the 'container' is the element which the background adapts to
 			// (either the chrome window or some element, depending on attachment)
-			var parElement = backgroundAttachment == 'fixed' ? $window : this.$el;
-			var winOffset = parElement.offset() || {left: pageXOffset, top: pageYOffset};
-			var winWidth = parElement.innerWidth();
-			var winHeight = parElement.innerHeight();
+			var container;
+			if (backgroundAttachment == 'fixed') {
+				container = { left: window.pageXOffset, top: window.pageYOffset };
+				container.width = $window.width();
+				container.height = $window.height();
+			}
+			else {
+				container = this.$el.offset();
+				container.width = this.$el.innerWidth();
+				container.height = this.$el.innerHeight();
+			}
 
 			// TODO: background-clip
 			if (backgroundSize == 'cover') {
-				var scale = Math.max(winWidth / this.backgroundWidth, winHeight / this.backgroundHeight);
+				var scale = Math.max(container.width / this.backgroundWidth, container.height / this.backgroundHeight);
 
 				var backgroundWidth = this.backgroundWidth * scale;
 				var backgroundHeight = this.backgroundHeight * scale;
 			}
 			else if (backgroundSize == 'contain') {
-				var scale = Math.min(winWidth / this.backgroundWidth, winHeight / this.backgroundHeight);
+				var scale = Math.min(container.width / this.backgroundWidth, container.height / this.backgroundHeight);
 
 				var backgroundWidth = this.backgroundWidth * scale;
 				var backgroundHeight = this.backgroundHeight * scale;
@@ -382,14 +555,14 @@
 				var backgroundHeight = backgroundSize[1] || backgroundWidth;
 
 				if (isPercentage(backgroundWidth)) {
-					backgroundWidth = winWidth * parseFloat(backgroundWidth) / 100;
+					backgroundWidth = container.width * parseFloat(backgroundWidth) / 100;
 				}
 				else if (backgroundWidth != 'auto') {
 					backgroundWidth = parseFloat(backgroundWidth);
 				}
 
 				if (isPercentage(backgroundHeight)) {
-					backgroundHeight = winHeight * parseFloat(backgroundHeight) / 100;
+					backgroundHeight = container.height * parseFloat(backgroundHeight) / 100;
 				}
 				else if (backgroundHeight != 'auto') {
 					backgroundHeight = parseFloat(backgroundHeight);
@@ -411,39 +584,21 @@
 			}
 
 			// Compute backgroundX and backgroundY in page coordinates
-			var backgroundX = backgroundPosition[0] || '';
-			var backgroundY = backgroundPosition[1] || backgroundX;
+			var backgroundX = backgroundPosition[0];
+			var backgroundY = backgroundPosition[1];
 
-			if (backgroundX == 'left') {
-				backgroundX = winOffset.left;
-			}
-			else if (backgroundX == 'center') {
-				backgroundX = winOffset.left + winWidth / 2 - backgroundWidth / 2;
-			}
-			else if (backgroundX == 'right') {
-				backgroundX = winOffset.left + winWidth - backgroundWidth;
-			}
-			else if (isPercentage(backgroundX)) {
-				backgroundX = winOffset.left + (winWidth - backgroundWidth) * parseFloat(backgroundX) / 100;
+			if (isPercentage(backgroundX)) {
+				backgroundX = container.left + (container.width - backgroundWidth) * parseFloat(backgroundX) / 100;
 			}
 			else {
-				backgroundX = parseFloat(backgroundX);
+				backgroundX = container.left + parseFloat(backgroundX);
 			}
 
-			if (backgroundY == 'top') {
-				backgroundY = winOffset.top;
-			}
-			else if (backgroundY == 'center') {
-				backgroundY = winOffset.top + winHeight / 2 - backgroundHeight / 2;
-			}
-			else if (backgroundY == 'bottom') {
-				backgroundY = winOffset.top + winHeight - backgroundHeight;
-			}
-			else if (isPercentage(backgroundY)) {
-				backgroundY = winOffset.top + (winHeight - backgroundHeight) * parseFloat(backgroundY) / 100;
+			if (isPercentage(backgroundY)) {
+				backgroundY = container.top + (container.height - backgroundHeight) * parseFloat(backgroundY) / 100;
 			}
 			else {
-				backgroundY = parseFloat(backgroundY);
+				backgroundY = container.top + parseFloat(backgroundY);
 			}
 
 			var elementOffset = this.$el.offset();
@@ -498,8 +653,7 @@
 				'}'
 			].join('\n'));
 
-			this.updateProgram = [0,0];
-			this.updateProgram[0] = createProgram(vertexShader, [
+			this.updateProgram = createProgram(vertexShader, [
 				'precision highp float;',
 
 				'uniform sampler2D texture;',
@@ -527,27 +681,7 @@
 					'gl_FragColor = info;',
 				'}'
 			].join('\n'));
-			gl.uniform2fv(this.updateProgram[0].locations.delta, this.textureDelta);
-
-			this.updateProgram[1] = createProgram(vertexShader, [
-				'precision highp float;',
-
-				'uniform sampler2D texture;',
-				'uniform vec2 delta;',
-
-				'varying vec2 coord;',
-
-				'void main() {',
-					'vec4 info = texture2D(texture, coord);',
-
-					'vec3 dx = vec3(delta.x, texture2D(texture, vec2(coord.x + delta.x, coord.y)).r - info.r, 0.0);',
-					'vec3 dy = vec3(0.0, texture2D(texture, vec2(coord.x, coord.y + delta.y)).r - info.r, delta.y);',
-					'info.ba = normalize(cross(dy, dx)).xz;',
-
-					'gl_FragColor = info;',
-				'}'
-			].join('\n'));
-			gl.uniform2fv(this.updateProgram[1].locations.delta, this.textureDelta);
+			gl.uniform2fv(this.updateProgram.locations.delta, this.textureDelta);
 
 			this.renderProgram = createProgram([
 				'precision highp float;',
@@ -569,23 +703,27 @@
 
 				'uniform sampler2D samplerBackground;',
 				'uniform sampler2D samplerRipples;',
+				'uniform vec2 delta;',
+
 				'uniform float perturbance;',
 				'varying vec2 ripplesCoord;',
 				'varying vec2 backgroundCoord;',
 
 				'void main() {',
-					'vec2 offset = -texture2D(samplerRipples, ripplesCoord).ba;',
+					'float height = texture2D(samplerRipples, ripplesCoord).r;',
+					'float heightX = texture2D(samplerRipples, vec2(ripplesCoord.x + delta.x, ripplesCoord.y)).r;',
+					'float heightY = texture2D(samplerRipples, vec2(ripplesCoord.x, ripplesCoord.y + delta.y)).r;',
+					'vec3 dx = vec3(delta.x, heightX - height, 0.0);',
+					'vec3 dy = vec3(0.0, heightY - height, delta.y);',
+					'vec2 offset = -normalize(cross(dy, dx)).xz;',
 					'float specular = pow(max(0.0, dot(offset, normalize(vec2(-0.6, 1.0)))), 4.0);',
 					'gl_FragColor = texture2D(samplerBackground, backgroundCoord + offset * perturbance) + specular;',
 				'}'
 			].join('\n'));
+			gl.uniform2fv(this.renderProgram.locations.delta, this.textureDelta);
 		},
 
 		initTexture: function() {
-
-			// Init transparent image data to fall back to when no texture can be loaded.
-			this.transparentPixels = new ImageData(32, 32);
-
 			this.backgroundTexture = gl.createTexture();
 			gl.bindTexture(gl.TEXTURE_2D, this.backgroundTexture);
 			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
@@ -595,7 +733,7 @@
 
 		setTransparentTexture: function() {
 			gl.bindTexture(gl.TEXTURE_2D, this.backgroundTexture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.transparentPixels);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, transparentPixels);
 		},
 
 		hideCssBackground: function() {
@@ -620,13 +758,13 @@
 			this.$el.css('backgroundImage', this.originalInlineCss || '');
 		},
 
-		dropAtMouse: function(e, radius, strength) {
+		dropAtPointer: function(pointer, radius, strength) {
 			var borderLeft = parseInt(this.$el.css('border-left-width')) || 0,
 					borderTop = parseInt(this.$el.css('border-top-width')) || 0;
 
 			this.drop(
-				e.pageX - this.$el.offset().left - borderLeft,
-				e.pageY - this.$el.offset().top - borderTop,
+				pointer.pageX - this.$el.offset().left - borderLeft,
+				pointer.pageY - this.$el.offset().top - borderTop,
 				radius,
 				strength
 			);
@@ -651,11 +789,8 @@
 
 			gl.viewport(0, 0, this.resolution, this.resolution);
 
-			// Render onto texture/framebuffer 0
-			gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[0]);
-
-			// Using texture 1
-			bindTexture(this.textures[1]);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[this.bufferWriteIndex]);
+			bindTexture(this.textures[this.bufferReadIndex]);
 
 			gl.useProgram(this.dropProgram.id);
 			gl.uniform2fv(this.dropProgram.locations.center, dropPosition);
@@ -664,11 +799,7 @@
 
 			this.drawQuad();
 
-			// Switch textures
-			var t = this.framebuffers[0]; this.framebuffers[0] = this.framebuffers[1]; this.framebuffers[1] = t;
-			t = this.textures[0]; this.textures[0] = this.textures[1]; this.textures[1] = t;
-
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			this.swapBufferIndices();
 		},
 
 		destroy: function() {
@@ -677,7 +808,7 @@
 				.removeClass('jquery-ripples')
 				.removeData('ripples');
 
-			this.canvas.remove();
+			this.$canvas.remove();
 			this.restoreCssBackground();
 		},
 
@@ -725,8 +856,8 @@
 	var old = $.fn.ripples;
 
 	$.fn.ripples = function(option) {
-		if (!supportsWebGL) {
-			throw new Error('Your browser does not support WebGL or the OES_texture_float extension.');
+		if (!config) {
+			throw new Error('Your browser does not support WebGL, the OES_texture_float extension or rendering to floating point textures.');
 		}
 
 		var args = (arguments.length > 1) ? Array.prototype.slice.call(arguments, 1) : undefined;
