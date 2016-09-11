@@ -28,11 +28,97 @@
 		return str[str.length - 1] == '%';
 	}
 
-	function hasWebGLSupport() {
+	/**
+	 *  Load a configuration of GL settings which the browser supports.
+	 *  For example:
+	 *  - not all browsers support WebGL
+	 *  - not all browsers support floating point textures
+	 *  - not all browsers support linear filtering for floating point textures
+	 *  - not all browsers support rendering to floating point textures
+	 *  - some browsers *do* support rendering to half-floating point textures instead.
+	 */
+	function loadConfig() {
 		var canvas = document.createElement('canvas');
-		var context = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-		var result = context && context.getExtension('OES_texture_float');
-		return result;
+		gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+		if (!gl) {
+			// Browser does not support WebGL.
+			return null;
+		}
+
+		// Load extensions
+		var extensions = {};
+		[
+			'OES_texture_float',
+			'OES_texture_half_float',
+			'OES_texture_float_linear',
+			'OES_texture_half_float_linear'
+		].forEach(function(name) {
+			var extension = gl.getExtension(name);
+			if (extension) {
+				extensions[name] = extension;
+			}
+		});
+
+		// If no floating point extensions are supported we can bail out early.
+		if (!extensions.OES_texture_float) {
+			return null;
+		}
+
+		var configs = [];
+
+		function createConfig(type, glType) {
+			var name = 'OES_texture_' + type,
+					nameLinear = name + '_linear',
+					linearSupport = nameLinear in extensions,
+					configExtensions = [name];
+
+			if (linearSupport) {
+				configExtensions.push(nameLinear);
+			}
+
+			return {
+				type: glType,
+				linearSupport: linearSupport,
+				extensions: configExtensions
+			};
+		}
+
+		configs.push(
+			createConfig('float', gl.FLOAT)
+		);
+
+		if (extensions.OES_texture_half_float) {
+			configs.push(
+				createConfig('half_float', extensions.OES_texture_half_float.HALF_FLOAT_OES)
+			);
+		}
+
+		// Setup the texture and framebuffer
+		var texture = gl.createTexture();
+		var framebuffer = gl.createFramebuffer();
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+		// Check for each supported texture type if rendering to it is supported
+		var config = null;
+
+		for (var i = 0; i < configs.length; i++) {
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 32, 32, 0, gl.RGBA, configs[i].type, null);
+
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+			if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE) {
+				config = configs[i];
+				break;
+			}
+		}
+
+		return config;
 	}
 
 	function createEmptyData(width, height) {
@@ -85,10 +171,6 @@
 			});
 		}
 	}
-
-	var transparentPixels = createEmptyData(32, 32);
-
-	var supportsWebGL = hasWebGLSupport();
 
 	function createProgram(vertexSource, fragmentSource, uniformValues) {
 		function compileSource(type, source) {
@@ -143,6 +225,9 @@
 		return url.match(/^data:/);
 	}
 
+	var config = loadConfig();
+	var transparentPixels = createEmptyData(32, 32);
+
 	// Extend the css
 	$('head').prepend('<style>.jquery-ripples { position: relative; z-index: 0; }</style>');
 
@@ -184,8 +269,9 @@
 		this.context = gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
 		// Load extensions
-		gl.getExtension('OES_texture_float');
-		var linearSupport = gl.getExtension('OES_texture_float_linear');
+		config.extensions.forEach(function(name) {
+			gl.getExtension(name);
+		});
 
 		// Start listening to window resize events
 		$(window).on('resize', function() {
@@ -224,16 +310,13 @@
 			framebuffer.height = this.resolution;
 
 			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, linearSupport ? gl.LINEAR : gl.NEAREST);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, linearSupport ? gl.LINEAR : gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, config.linearSupport ? gl.LINEAR : gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, config.linearSupport ? gl.LINEAR : gl.NEAREST);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.resolution, this.resolution, 0, gl.RGBA, gl.FLOAT, null);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.resolution, this.resolution, 0, gl.RGBA, config.type, null);
 
 			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-			if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) {
-				throw new Error('Rendering to this texture is not supported (incomplete framebuffer)');
-			}
 
 			this.textures.push(texture);
 			this.framebuffers.push(framebuffer);
@@ -747,8 +830,8 @@
 	var old = $.fn.ripples;
 
 	$.fn.ripples = function(option) {
-		if (!supportsWebGL) {
-			throw new Error('Your browser does not support WebGL or the OES_texture_float extension.');
+		if (!config) {
+			throw new Error('Your browser does not support WebGL, the OES_texture_float extension or rendering to floating point textures.');
 		}
 
 		var args = (arguments.length > 1) ? Array.prototype.slice.call(arguments, 1) : undefined;
