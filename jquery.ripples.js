@@ -121,17 +121,14 @@
 		return config;
 	}
 
-	function createEmptyData(width, height) {
+	function createImageData(width, height) {
 		try {
 			return new ImageData(width, height);
 		}
 		catch (e) {
 			// Fallback for IE
 			var canvas = document.createElement('canvas');
-			canvas.width = width;
-			canvas.height = height;
-
-			return canvas.getContext('2d').getImageData(0, 0, width, height);
+			return canvas.getContext('2d').createImageData(width, height);
 		}
 	}
 
@@ -226,7 +223,7 @@
 	}
 
 	var config = loadConfig();
-	var transparentPixels = createEmptyData(32, 32);
+	var transparentPixels = createImageData(32, 32);
 
 	// Extend the css
 	$('head').prepend('<style>.jquery-ripples { position: relative; z-index: 0; }</style>');
