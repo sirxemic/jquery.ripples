@@ -246,6 +246,7 @@
 
 		this.crossOrigin = options.crossOrigin;
 		this.imageUrl = options.imageUrl;
+		this.cacheBuster = options.cacheBuster;
 
 		// Init WebGL canvas
 		var canvas = document.createElement('canvas');
@@ -351,7 +352,8 @@
 		dropRadius: 20,
 		perturbance: 0.03,
 		interactive: true,
-		crossOrigin: ''
+		crossOrigin: '',
+		cacheBuster: false
 	};
 
 	Ripples.prototype = {
@@ -448,10 +450,18 @@
 				that.setTransparentTexture();
 			};
 
-			// Disable CORS when the image source is a data URI.
-			image.crossOrigin = isDataUri(this.imageSource) ? null : this.crossOrigin;
+			var imageSource = this.imageSource;
+			if (!isDataUri(this.imageSource)) {
+				// Disable CORS when the image source is a data URI.
+				image.crossOrigin = this.crossOrigin;
 
-			image.src = this.imageSource;
+				// Attach cache buster
+				if (this.cacheBuster) {
+					imageSource = imageSource + '?cb=' + Math.floor(Math.random()*10000000);
+				}
+			}
+
+			image.src = imageSource;
 		},
 
 		step: function() {
@@ -845,6 +855,9 @@
 				case 'imageUrl':
 					this.imageUrl = value;
 					this.loadImage();
+					break;
+				case 'cacheBuster':
+					this[property] = value;
 					break;
 			}
 		}
