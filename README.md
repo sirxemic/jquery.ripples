@@ -40,6 +40,7 @@ Options
 | resolution | integer | 256 | The width and height of the WebGL texture to render to. The larger this value, the smoother the rendering and the slower the ripples will propagate. |
 | interactive | bool | true | Whether mouse clicks and mouse movement triggers the effect. |
 | crossOrigin | string | "" | The crossOrigin attribute to use for the affected image. For more information see [MDN](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes).
+| cacheBuster | bool | false | If set to true, image source URL will have a ?cb={random} appended on every request. |
 
 
 Methods
