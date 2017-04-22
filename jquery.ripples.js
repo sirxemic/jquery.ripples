@@ -270,15 +270,9 @@
 			gl.getExtension(name);
 		});
 
-		// Start listening to window resize events
+		// Auto-resize when window size changes.
 		$(window).on('resize', function() {
-			var newWidth = that.$el.innerWidth(),
-					newHeight = that.$el.innerHeight();
-
-			if (newWidth != that.canvas.width || newHeight != that.canvas.height) {
-				canvas.width = newWidth;
-				canvas.height = newHeight;
-			}
+			that.updateSize();
 		});
 
 		// Init rendertargets for ripple data.
@@ -800,6 +794,16 @@
 			this.drawQuad();
 
 			this.swapBufferIndices();
+		},
+
+		updateSize: function() {
+			var newWidth = this.$el.innerWidth(),
+					newHeight = this.$el.innerHeight();
+
+			if (newWidth != this.canvas.width || newHeight != this.canvas.height) {
+				this.canvas.width = newWidth;
+				this.canvas.height = newHeight;
+			}
 		},
 
 		destroy: function() {
