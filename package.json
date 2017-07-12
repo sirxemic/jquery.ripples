@@ -11,6 +11,11 @@
     "background",
     "effect"
   ],
+  "scripts": {
+    "build": "rollup -c build/rollup.config.js",
+    "build-min": "rollup -c build/rollup.config-min.js",
+    "version": "npm run build && npm run build-min"
+  },
   "homepage": "https://sirxemic.github.io/jquery.ripples/",
   "license": "MIT",
   "author": {
@@ -18,12 +23,19 @@
     "url": "https://sirxemic.com/",
     "email": "pimschreurs@gmail.com"
   },
-  "main": "jquery.ripples.js",
+  "main": "dist/jquery.ripples.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/sirxemic/jquery.ripples.git"
   },
-  "dependencies": {
+  "peerDependencies": {
     "jquery": ">=1.7.0"
-  }
+  },
+  "devDependencies": {
+    "rollup": "^0.45.1",
+    "rollup-plugin-license": "^0.4.0",
+    "rollup-plugin-uglify": "^2.0.1",
+    "jquery": ">=1.7.0"
+  },
+  "dependencies": {}
 }
