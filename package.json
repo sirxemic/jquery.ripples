@@ -37,5 +37,9 @@
     "rollup-plugin-uglify": "^2.0.1",
     "jquery": ">=1.7.0"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }
