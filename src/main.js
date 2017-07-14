@@ -306,13 +306,17 @@ var Ripples = function (el, options) {
 	this.visible = true;
 	this.running = true;
 	this.inited = true;
+	this.destroyed = false;
 
 	this.setupPointerEvents();
 
 	// Init animation
 	function step() {
-		that.step();
-		requestAnimationFrame(step);
+		if (!that.destroyed) {
+			that.step();
+
+			requestAnimationFrame(step);
+		}
 	}
 
 	requestAnimationFrame(step);
@@ -793,6 +797,8 @@ Ripples.prototype = {
 
 		this.$canvas.remove();
 		this.restoreCssBackground();
+
+		this.destroyed = true;
 	},
 
 	show: function() {
