@@ -1,5 +1,5 @@
 /**
- * jQuery Ripples plugin v0.5.3 / https://github.com/sirxemic/jquery.ripples
+ * jQuery Ripples plugin v0.6.0 / https://github.com/sirxemic/jquery.ripples
  * MIT License
  * @author sirxemic / https://sirxemic.com/
  */
@@ -277,8 +277,6 @@ var Ripples = function (el, options) {
 		var framebuffer = gl.createFramebuffer();
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-		framebuffer.width = this.resolution;
-		framebuffer.height = this.resolution;
 
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, config.linearSupport ? gl.LINEAR : gl.NEAREST);
@@ -318,13 +316,17 @@ var Ripples = function (el, options) {
 	this.visible = true;
 	this.running = true;
 	this.inited = true;
+	this.destroyed = false;
 
 	this.setupPointerEvents();
 
 	// Init animation
 	function step() {
-		that.step();
-		requestAnimationFrame(step);
+		if (!that.destroyed) {
+			that.step();
+
+			requestAnimationFrame(step);
+		}
 	}
 
 	requestAnimationFrame(step);
@@ -805,6 +807,8 @@ Ripples.prototype = {
 
 		this.$canvas.remove();
 		this.restoreCssBackground();
+
+		this.destroyed = true;
 	},
 
 	show: function() {
