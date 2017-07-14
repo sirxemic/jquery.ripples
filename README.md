@@ -64,3 +64,5 @@ Call `$(selector).ripples('set', name, value)` to update properties of the effec
 - `imageUrl` (setting the image URL will update the background image used for the effect, but the `background-image` CSS property will be untouched)
 - `crossOrigin` (setting this won't have any effect until `imageUrl` is changed)
 
+### updateSize
+The effect resizes automatically when the width or height of the window changes. When the dimensions of the element changes, you need to call this function explicitly to update the size of the effect accordingly.
