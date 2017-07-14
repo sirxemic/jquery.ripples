@@ -14,7 +14,8 @@
   "scripts": {
     "build": "rollup -c build/rollup.config.js",
     "build-min": "rollup -c build/rollup.config-min.js",
-    "version": "npm run build && npm run build-min"
+    "version": "npm run build && npm run build-min && git add -A dist",
+    "postversion": "git push && git push --tags"
   },
   "homepage": "https://sirxemic.github.io/jquery.ripples/",
   "license": "MIT",
