@@ -1,6 +1,6 @@
 {
   "name": "jquery.ripples",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Add a water ripple effect to background images using WebGL.",
   "keywords": [
     "jquery",
