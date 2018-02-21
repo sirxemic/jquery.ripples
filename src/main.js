@@ -46,7 +46,7 @@ function loadConfig() {
 
 	var configs = [];
 
-	function createConfig(type, glType) {
+	function createConfig(type, glType, arrayType) {
 		var name = 'OES_texture_' + type,
 				nameLinear = name + '_linear',
 				linearSupport = nameLinear in extensions,
@@ -58,18 +58,22 @@ function loadConfig() {
 
 		return {
 			type: glType,
+			arrayType: arrayType,
 			linearSupport: linearSupport,
 			extensions: configExtensions
 		};
 	}
 
 	configs.push(
-		createConfig('float', gl.FLOAT)
+		createConfig('float', gl.FLOAT, Float32Array)
 	);
 
 	if (extensions.OES_texture_half_float) {
 		configs.push(
-			createConfig('half_float', extensions.OES_texture_half_float.HALF_FLOAT_OES)
+			// Array type should be Uint16Array, but at least on iOS that breaks. In that case we
+			// just initialize the textures with data=null, instead of data=new Uint16Array(...).
+			// This makes initialization a tad slower, but it's still negligible.
+			createConfig('half_float', extensions.OES_texture_half_float.HALF_FLOAT_OES, null)
 		);
 	}
 
@@ -260,7 +264,8 @@ var Ripples = function (el, options) {
 	this.bufferWriteIndex = 0;
 	this.bufferReadIndex = 1;
 
-	var textureData = new Float32Array(this.resolution * this.resolution * 4);
+	var arrayType = config.arrayType
+	var textureData = arrayType ? new arrayType(this.resolution * this.resolution * 4) : null;
 
 	for (var i = 0; i < 2; i++) {
 		var texture = gl.createTexture();
