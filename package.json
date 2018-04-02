@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "rollup": "^0.45.1",
-    "rollup-plugin-license": "^0.4.0",
+    "rollup-plugin-license": "^0.6.0",
     "rollup-plugin-uglify": "^2.0.1",
     "jquery": ">=1.7.0"
   },
