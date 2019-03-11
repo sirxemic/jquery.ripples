@@ -851,7 +851,8 @@ var old = $.fn.ripples;
 
 $.fn.ripples = function(option) {
 	if (!config) {
-		throw new Error('Your browser does not support WebGL, the OES_texture_float extension or rendering to floating point textures.');
+		console.log('Error: Your browser does not support WebGL, the OES_texture_float extension or rendering to floating point textures.');
+		return;
 	}
 
 	var args = (arguments.length > 1) ? Array.prototype.slice.call(arguments, 1) : undefined;
