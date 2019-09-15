@@ -1,5 +1,5 @@
 /**
- * jQuery Ripples plugin v0.6.2 / https://github.com/sirxemic/jquery.ripples
+ * jQuery Ripples plugin v0.6.3 / https://github.com/sirxemic/jquery.ripples
  * MIT License
  * @author sirxemic / https://sirxemic.com/
  */
@@ -266,9 +266,8 @@ var Ripples = function (el, options) {
 	});
 
 	// Auto-resize when window size changes.
-	$(window).on('resize', function() {
-		that.updateSize();
-	});
+	this.updateSize = this.updateSize.bind(this);
+	$(window).on('resize', this.updateSize);
 
 	// Init rendertargets for ripple data.
 	this.textures = [];
@@ -375,7 +374,7 @@ Ripples.prototype = {
 			.on('mousemove.ripples', function(e) {
 				dropAtPointer(e);
 			})
-			.on('touchmove.ripples, touchstart.ripples', function(e) {
+			.on('touchmove.ripples touchstart.ripples', function(e) {
 				var touches = e.originalEvent.changedTouches;
 				for (var i = 0; i < touches.length; i++) {
 					dropAtPointer(touches[i]);
@@ -811,6 +810,11 @@ Ripples.prototype = {
 			.off('.ripples')
 			.removeClass('jquery-ripples')
 			.removeData('ripples');
+
+		// Make sure the last used context is garbage-collected
+		gl = null;
+
+		$(window).off('resize', this.updateSize);
 
 		this.$canvas.remove();
 		this.restoreCssBackground();
